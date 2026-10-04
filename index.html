@@ -253,4 +253,15 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
         }
     });
 </script>
+<script>
+    // পেজ লোড হওয়ার সাথে সাথে পরিচালক (Admin) মোডে এসআর ও নোটিশ প্যানেল চালু করা
+    window.addEventListener('DOMContentLoaded', () => {
+        if (typeof listenToSRRules === 'function') {
+            listenToSRRules('admin'); // পরিচালকের এসআর প্যানেল অপশন চালু হবে
+        }
+        if (typeof listenToCompanyNotice === 'function') {
+            listenToCompanyNotice('admin'); // নোটিশ বোর্ড চালু হবে
+        }
+    });
+</script>
 
