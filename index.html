@@ -221,5 +221,25 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
   };
 })();
 
+    <!-- কোম্পানির লাইভ নোটিশ বোর্ড (ড্যাশবোর্ডের সবার নিচে থাকবে) -->
+    <div class="container-fluid my-5">
+        <div class="card shadow-sm p-4 text-start" style="border-top: 5px solid #d9534f; background-color: #fffdfb;">
+            <h4 class="mb-3" style="color: #d9534f; font-weight: bold;">📢 কোম্পানির অফিসিয়াল নোটিশ বোর্ড</h4>
+            
+            <!-- পরিচালকের নোটিশ লেখার ফর্ম (শুধুমাত্র পরিচালক দেখতে পাবেন) -->
+            <div id="admin-notice-form" class="mb-4 p-3 border rounded bg-light" style="display: none;">
+                <h6 class="fw-bold mb-2 text-secondary">নতুন নোটিশ জারি করুন (পরিচালক প্যানেল)</h6>
+                <div class="mb-3">
+                    <textarea id="new-notice-text" class="form-control" rows="3" placeholder="কোম্পানির সকল সদস্যের জন্য নতুন নোটিশের বিবরণ এখানে লিখুন..."></textarea>
+                </div>
+                <button type="button" id="btn-publish-notice" class="btn btn-danger font-weight-bold btn-sm">নোটিশ প্রকাশ করুন</button>
+            </div>
+
+            <!-- লাইভ নোটিশ প্রদর্শনের মূল জায়গা -->
+            <div id="live-notice-display" class="p-3 bg-white rounded border" style="font-size: 1.1rem; line-height: 1.6; color: #222; min-height: 60px;">
+                <span class="text-muted"><em>বর্তমানে কোনো নতুন নোটিশ নেই।</em></span>
+            </div>
+        </div>
+    </div>
 </script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><script src="cloud-adapter.js"></script></body></html>
 
