@@ -265,3 +265,47 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
     });
 </script>
 
+<!-- Supabase SDK এবং কানেকশন স্ক্রিপ্ট -->
+<script src="https://jsdelivr.net"></script>
+<script src="supabase-config.js"></script>
+<script src="cloud-adapter.js"></script>
+
+<script>
+    // ড্যাশবোর্ড লোড হওয়ার পর এসআর দায়িত্ব ও নোটিশ বোর্ড সচল করার লজিক
+    window.addEventListener('DOMContentLoaded', () => {
+        // ১. এসআর নিয়মাবলীর জন্য টেবিল বডি ফুটারের উপরে তৈরি করা (যদি না থাকে)
+        const appContainer = document.querySelector('#app') || document.body;
+        
+        // যদি স্ক্রিনে এসআর টেবিল বা নোটিশের আইডি না থাকে, তবে এটি অটোমেটিক ফুটারের ওপরে তৈরি করে নেবে
+        if (!document.getElementById('sr-rules-list')) {
+            const srHTML = `
+                <div class="container-fluid my-4">
+                    <div class="card shadow-sm p-4 text-start">
+                        <h3 class="mb-4 text-primary">📋 এসআর-এর দায়িত্ব ও নিয়মাবলী</h3>
+                        <div id="admin-sr-rule-form" class="mb-4 p-3 border rounded bg-light" style="display: none;">
+                            <h6 class="fw-bold mb-2">নতুন নিয়ম সংযোজন (পরিচালক প্যানেল)</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4"><input type="text" id="new-rule-title" class="form-control form-control-sm" placeholder="নিয়মের নাম"></div>
+                                <div class="col-md-6"><input type="text" id="new-rule-desc" class="form-control form-control-sm" placeholder="দায়িত্বের বিবরণ লিখুন..."></div>
+                                <div class="col-md-2"><button type="button" id="btn-add-rule" class="btn btn-success btn-sm w-100">সংযোজন</button></div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <tbody id="sr-rules-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+            appContainer.insertAdjacentHTML('beforeend', srHTML);
+        }
+
+        // ২. রিয়েল-টাইম ডাটাবেজ ফাংশনগুলো চালু করা (পরিচালক মোডে)
+        if (typeof listenToSRRules === 'function') {
+            listenToSRRules('admin'); 
+        }
+        if (typeof listenToCompanyNotice === 'function') {
+            listenToCompanyNotice('admin'); 
+        }
+    });
+</script>
