@@ -513,3 +513,151 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// ==========================================================
+// ১. কোম্পানির লাইভ নোটিশ বোর্ড লজিক (ম্যানেজার ও পরিচালক)
+// ==========================================================
+function listenToCompanyNotice(userRole) {
+    // নোটিশ বোর্ড সবার জন্য অন থাকবে
+    const noticeForm = document.getElementById('admin-notice-form');
+    if (noticeForm) noticeForm.style.display = 'block';
+
+    supabase
+        .channel('public:shoes_data')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shoes_data', filter: "data_key=eq.company_notice" }, (payload) => {
+            if (payload.new && payload.new.content) {
+                displayNotice(payload.new.content.text);
+            }
+        })
+        .subscribe();
+
+    fetchLatestNotice();
+}
+
+async function fetchLatestNotice() {
+    const { data, error } = await supabase.from('shoes_data').select('content').eq('data_key', 'company_notice').single();
+    if (!error && data && data.content) {
+        displayNotice(data.content.text);
+    }
+}
+
+function displayNotice(noticeText) {
+    const noticeDisplay = document.getElementById('live-notice-display');
+    if (noticeDisplay) {
+        if (noticeText) {
+            noticeDisplay.innerHTML = `<strong class="text-danger">[সর্বশেষ নোটিশ]:</strong> ${noticeText}`;
+        } else {
+            noticeDisplay.innerHTML = `<span class="text-muted"><em>বর্তমানে কোনো নতুন নোটিশ নেই।</em></span>`;
+        }
+    }
+}
+
+// ==========================================================
+// ২. এসআর নিয়মাবলী সংযোজন ও বিয়োজন লজিক (ফিক্সড তালিকাসহ)
+// ==========================================================
+function listenToSRRules(userRole) {
+    const adminForm = document.getElementById('admin-sr-rule-form');
+    if(adminForm) adminForm.style.display = 'block';
+
+    supabase
+        .channel('public:shoes_data')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shoes_data', filter: "data_key=eq.sr_rules" }, (payload) => {
+            renderRules(payload.new.content, userRole);
+        })
+        .subscribe();
+
+    fetchInitialRules(userRole);
+}
+
+async function fetchInitialRules(userRole) {
+    const { data, error } = await supabase.from('shoes_data').select('content').eq('data_key', 'sr_rules').single();
+    
+    // আপনার ফিক্সড ৯টি মূল দায়িত্বের তালিকা
+    const defaultRules = [
+        { id: 1, title: "1. নির্ধারিত এলাকার দোকান পরিদর্শন", desc: "নিজের দায়িত্বে থাকা এলাকার জুতার দোকান নিয়মিত ভিজিট করে সম্পর্ক বজায় রাখা এবং দোকানের চাহিদা জানা।" },
+        { id: 2, title: "2. নতুন retailer ও dealer তৈরি", desc: "সম্ভাবনাময় নতুন খুচরা বিক্রেতা ও ডিলার খুঁজে বের করে পরিচিতি, যোগাযোগের তথ্য এবং ব্যবসার প্রয়োজন সংগ্রহ করা।" },
+        { id: 3, title: "3. অর্ডার সংগ্রহ", desc: "দোকানদারের চাহিদা অনুযায়ী মডেল, সাইজ, রং ও পরিমাণ নিশ্চিত করে অর্ডার সংগ্রহ এবং সফটওয়্যারে সঠিকভাবে নথিভুক্ত করা।" },
+        { id: 4, title: "4. বকেয়া আদায়ে সহযোগিতা", desc: "দোকানদারকে পাওনার কথা জানানো, পরিশোধের সময় সমন্বয় করা এবং আদায়ের তথ্য সংশ্লিষ্ট দায়িত্বপ্রাপ্ত ব্যক্তিকে জানানো।" },
+        { id: 5, title: "5. নতুন মডেল ও অফার জানানো", desc: "কোম্পানির নতুন মডেল, পণ্য এবং অনুমোদিত অফার দোকানদারদের কাছে তুলে ধরা।" },
+        { id: 6, title: "6. বাজার ও প্রতিযোগী ব্র্যান্ডের তথ্য", desc: "প্রতিযোগী ব্র্যান্ডের পণ্যের দাম, নতুন মডেল, অফার এবং এলাকার বাজার পরিস্থিতির তথ্য সংগ্রহ করে রিপোর্ট করা।" },
+        { id: 7, title: "7. দৈনিক ভিজিট ও অর্ডার রিপোর্ট", desc: "প্রতিদিন কোন দোকান ভিজিট হয়েছে, কী আলোচনা হয়েছে, কী অর্ডার পাওয়া গেছে এবং কী ফলোআপ বাকি আছে তা রিপোর্ট করা।" },
+        { id: 8, title: "8. অনুমোদিত মূল্য ও ছাড় মেনে চলা", desc: "কোম্পানির অনুমোদিত মূল্যতালিকা ও ডিসকাউন্ট নীতি অনুসরণ করা। অনুমোদনের বাইরে কোনো দামে বিক্রি বা ছাড় দেওয়া যাবে না।" },
+        { id: 9, title: "9. কোম্পানির টাকা ও পণ্যের হিসাব জমা", desc: "নিজের কাছে কোম্পানির কোনো টাকা, পণ্য বা নথি না থাকলে তার পূর্ণ হিসাবসহ নির্ধারিত নিয়মে জমা দেওয়া এবং জমার প্রমাণ সংরক্ষণ করা।" }
+    ];
+
+    if (!error && data) {
+        renderRules(data.content, userRole);
+    } else {
+        // যদি ডাটাবেজ একদম নতুন বা খালি থাকে, তবে ফিক্সড তালিকাটি ক্লাউডে ফার্স্ট টাইম সেভ হবে
+        await supabase.from('shoes_data').upsert([{ data_key: 'sr_rules', content: defaultRules }], { onConflict: 'data_key' });
+        renderRules(defaultRules, userRole);
+    }
+}
+
+function renderRules(rulesList, userRole) {
+    const tbody = document.getElementById('sr-rules-list');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    rulesList.forEach((rule) => {
+        // ম্যানেজার বা এডমিন সবার জন্যই লাল "বিয়োজন" বাটনটি থাকবে
+        let deleteBtn = `<td><button class="btn btn-sm btn-danger text-white" onclick="deleteRuleAction(${rule.id})">বিয়োজন</button></td>`;
+        
+        tbody.innerHTML += `
+            <tr>
+                <td style="width: 25%; font-weight: bold; padding: 12px;">${rule.title}</td>
+                <td style="text-align: left; padding: 12px; color: #555;">${rule.desc}</td>
+                ${deleteBtn}
+            </tr>
+        `;
+    });
+}
+
+// ==========================================================
+// ৩. বাটন ক্লিক ইভেন্টসমূহ
+// ==========================================================
+window.addEventListener('DOMContentLoaded', () => {
+    const btnPublish = document.getElementById('btn-publish-notice');
+    if (btnPublish) {
+        btnPublish.addEventListener('click', async () => {
+            const noticeInput = document.getElementById('new-notice-text').value.trim();
+            if (!noticeInput) return alert('দয়া করে নোটিশের মূল বক্তব্যটি লিখুন।');
+
+            const { error } = await supabase.from('shoes_data').upsert([{ data_key: 'company_notice', content: { text: noticeInput } }], { onConflict: 'data_key' });
+            if (error) alert('নোটিশ পাবলিশ করতে সমস্যা হয়েছে।');
+            else {
+                alert('কোম্পানির নোটিশটি সফলভাবে জারি হয়েছে!');
+                document.getElementById('new-notice-text').value = '';
+            }
+        });
+    }
+
+    const btnAddRule = document.getElementById('btn-add-rule');
+    if(btnAddRule) {
+        btnAddRule.addEventListener('click', async () => {
+            const titleInput = document.getElementById('new-rule-title').value.trim();
+            const descInput = document.getElementById('new-rule-desc').value.trim();
+            if(!titleInput || !descInput) return alert('দয়া করে নিয়মের নাম ও বিবরণ দুটিই লিখুন।');
+
+            const { data } = await supabase.from('shoes_data').select('content').eq('data_key', 'sr_rules').single();
+            let currentRules = data ? data.content : [];
+            currentRules.push({ id: Date.now(), title: titleInput, desc: descInput });
+
+            await supabase.from('shoes_data').upsert([{ data_key: 'sr_rules', content: currentRules }], { onConflict: 'data_key' });
+            document.getElementById('new-rule-title').value = '';
+            document.getElementById('new-rule-desc').value = '';
+            alert('নতুন নিয়ম সফলভাবে সংযোজন করা হয়েছে!');
+        });
+    }
+});
+
+window.deleteRuleAction = async function(ruleId) {
+    if(confirm('আপনি কি নিশ্চিত যে এই নিয়মটি বিয়োজন করতে চান?')) {
+        const { data } = await supabase.from('shoes_data').select('content').eq('data_key', 'sr_rules').single();
+        if(data) {
+            let filteredRules = data.content.filter(rule => rule.id !== ruleId);
+            await supabase.from('shoes_data').upsert([{ data_key: 'sr_rules', content: filteredRules }], { onConflict: 'data_key' });
+            alert('নিয়মটি সফলভাবে বিয়োজন করা হয়েছে!');
+        }
+    }
+}
