@@ -413,3 +413,38 @@
   window.showAuth = buildAuth;
   start().catch(error => showError(normalizeError(error)));
 })();
+// ==========================================================
+// পরিচালকের (Admin) জন্য এসআর (SR) নিয়মাবলী ও বেতন প্যানেল কোড
+// ==========================================================
+
+// ১. এসআর নিয়মাবলী সংযোজন (শুধুমাত্র পরিচালকের জন্য)
+async function addSRRule(title, description) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.user_metadata.role === 'admin') {
+        const { error } = await supabase.from('sr_rules').insert([{ rule_title: title, rule_description: description }]);
+        if (error) alert('ত্রুটি: ' + error.message);
+        else alert('এসআর নিয়মাবলী সফলভাবে সংযোজন করা হয়েছে!');
+    } else {
+        alert('দুঃখিত! এই ক্ষমতা শুধুমাত্র পরিচালকের রয়েছে।');
+    }
+}
+
+// ২. এসআর নিয়মাবলী বিয়োজন বা ডিলিট (শুধুমাত্র পরিচালকের জন্য)
+async function deleteSRRule(ruleId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.user_metadata.role === 'admin') {
+        const { error } = await supabase.from('sr_rules').delete().eq('id', ruleId);
+        if (error) alert('মুছে ফেলতে সমস্যা হয়েছে।');
+        else alert('নিয়মটি সফলভাবে বিয়োজন করা হয়েছে।');
+    }
+}
+
+// ৩. বেতন ও অন্যান্য সুযোগ সুবিধা যোগ করার ফাংশন
+async function addSRSalaryAndBenefits(srData) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.user_metadata.role === 'admin') {
+        const { error } = await supabase.from('sr_salary_benefits').insert([srData]);
+        if (error) alert('বেতন তথ্য সেভ হয়নি।');
+        else alert('এসআর-এর বেতন ও সুযোগ-সুবিধা সফলভাবে যুক্ত হয়েছে!');
+    }
+}
