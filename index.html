@@ -354,12 +354,46 @@ function openSRNoticePage() {
             appContainer.insertAdjacentHTML('beforeend', srHTML);
         }
 
-        // ২. রিয়েল-টাইম ডাটাবেজ ফাংশনগুলো চালু করা (পরিচালক মোডে)
-        if (typeof listenToSRRules === 'function') {
-            listenToSRRules('admin'); 
-        }
-        if (typeof listenToCompanyNotice === 'function') {
-            listenToCompanyNotice('admin'); 
+        <script>
+    window.addEventListener('DOMContentLoaded', () => {
+        // ১. শুরুতে ম্যানেজার/পরিচালক ফর্মগুলো লুকিয়ে রাখা (সুরক্ষার জন্য)
+        if (document.getElementById('admin-sr-rule-form')) document.getElementById('admin-sr-rule-form').style.display = 'none';
+        if (document.getElementById('admin-notice-form')) document.getElementById('admin-notice-form').style.display = 'none';
+
+        // ২. পেজের উপরে বা এসআর প্যানেলের শুরুতে একটি পাসওয়ার্ড ভেরিফিকেশন বাটন যোগ করা
+        const titleArea = document.querySelector('.page-head') || document.body;
+        const loginHTML = `
+            <div id="director-auth-box" class="p-3 mb-4 bg-white border rounded shadow-sm d-flex gap-2 align-items-center" style="max-width: 400px; margin-top: 20px;">
+                <input type="password" id="director-pass-input" class="form-control field" placeholder="পরিচালক মাস্টার পাসওয়ার্ড দিন">
+                <button type="button" id="btn-verify-director" class="btn btn-sm text-white" style="background: var(--deep); min-width: 80px;">আনলক</button>
+            </div>
+        `;
+        titleArea.insertAdjacentHTML('afterend', loginHTML);
+
+        // ৩. পাসওয়ার্ড চেক করার বাটন লজিক
+        const btnVerify = document.getElementById('btn-verify-director');
+        if (btnVerify) {
+            btnVerify.addEventListener('click', () => {
+                const inputPass = document.getElementById('director-pass-input').value;
+                
+                // আপনার পছন্দমতো মাস্টার পাসওয়ার্ড এখানে সেট করুন (যেমন: 4506569)
+                if (inputPass === '4506569') { 
+                    alert('পরিচালক হিসেবে সফলভাবে ভেরিফাইড! সকল ক্ষমতা সচল করা হলো।');
+                    
+                    // পাসওয়ার্ড বক্সটি স্ক্রিন থেকে লুকিয়ে ফেলা
+                    document.getElementById('director-auth-box').style.display = 'none';
+                    
+                    // সকল এডিট ও নোটিশ ফর্ম সবার সামনে ওপেন করা
+                    if (document.getElementById('admin-sr-rule-form')) document.getElementById('admin-sr-rule-form').style.display = 'block';
+                    if (document.getElementById('admin-notice-form')) document.getElementById('admin-notice-form').style.display = 'block';
+                    
+                    // ডাটাবেজ ফাংশন রান করা
+                    if (typeof listenToSRRules === 'function') listenToSRRules('admin'); 
+                    if (typeof listenToCompanyNotice === 'function') listenToCompanyNotice('admin');
+                } else {
+                    alert('ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।');
+                }
+            });
         }
     });
 </script>
