@@ -448,3 +448,68 @@ async function addSRSalaryAndBenefits(srData) {
         else alert('এসআর-এর বেতন ও সুযোগ-সুবিধা সফলভাবে যুক্ত হয়েছে!');
     }
 }
+// ==========================================================
+// কোম্পানির নিচের লাইভ নোটিশ বোর্ড লজিক (রিয়েল-টাইম)
+// ==========================================================
+
+function listenToCompanyNotice(userRole) {
+    // লগইন করা ব্যক্তি পরিচালক (admin) হলে নোটিশ ইনপুট ফর্মটি দৃশ্যমান হবে
+    if (userRole === 'admin') {
+        const noticeForm = document.getElementById('admin-notice-form');
+        if (noticeForm) noticeForm.style.display = 'block';
+    }
+
+    // Supabase ডাটাবেজ থেকে রিয়েল-টাইম নোটিশের পরিবর্তন ট্র্যাক করা
+    supabase
+        .channel('public:shoes_data')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'shoes_data', filter: "data_key=eq.company_notice" }, (payload) => {
+            if (payload.new && payload.new.content) {
+                displayNotice(payload.new.content.text);
+            }
+        })
+        .subscribe();
+
+    // পেজ ওপেন হওয়ার সাথে সাথে ডাটাবেজের সর্বশেষ নোটিশটি স্ক্রিনে আনা
+    fetchLatestNotice();
+}
+
+async function fetchLatestNotice() {
+    const { data, error } = await supabase.from('shoes_data').select('content').eq('data_key', 'company_notice').single();
+    if (!error && data && data.content) {
+        displayNotice(data.content.text);
+    }
+}
+
+function displayNotice(noticeText) {
+    const noticeDisplay = document.getElementById('live-notice-display');
+    if (noticeDisplay) {
+        if (noticeText) {
+            noticeDisplay.innerHTML = `<strong class="text-danger">[সর্বশেষ আপডেট]:</strong> ${noticeText}`;
+        } else {
+            noticeDisplay.innerHTML = `<span class="text-muted"><em>বর্তমানে কোনো নতুন নোটিশ নেই।</em></span>`;
+        }
+    }
+}
+
+// পরিচালকের নোটিশ পাবলিশ বাটনের লজিক
+window.addEventListener('DOMContentLoaded', () => {
+    const btnPublish = document.getElementById('btn-publish-notice');
+    if (btnPublish) {
+        btnPublish.addEventListener('click', async () => {
+            const noticeInput = document.getElementById('new-notice-text').value.trim();
+            if (!noticeInput) return alert('দয়া করে নোটিশের মূল বক্তব্যটি লিখুন।');
+
+            // Supabase ডাটাবেজে নতুন নোটিশটি সেভ বা ওভাররাইট করা
+            const { error } = await supabase
+                .from('shoes_data')
+                .upsert([{ data_key: 'company_notice', content: { text: noticeInput } }], { onConflict: 'data_key' });
+
+            if (error) {
+                alert('নোটিশ পাবলিশ করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।');
+            } else {
+                alert('কোম্পানির নোটিশটি সফলভাবে জারি হয়েছে! সব সদস্যের স্ক্রিনে এটি আপডেট হয়ে গেছে।');
+                document.getElementById('new-notice-text').value = ''; // বক্সটি খালি করা
+            }
+        });
+    }
+});
