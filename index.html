@@ -221,7 +221,11 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
   };
 })();
     <script src="./supabase-js@2"></script>
-      <script src="https://jsdelivr.net"></script>
+   <script type="module" src="supabase-js@2"></script>
+    <script type="module" src="supabase-config.js"></script>
+    <script type="module" src="cloud-adapter.js"></script>
+</body>
+</html>
     <script src="supabase-config.js"></script>
     <script src="cloud-adapter.js"></script>
 </body>
