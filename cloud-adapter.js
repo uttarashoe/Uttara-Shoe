@@ -45,51 +45,55 @@
   const buildAuth = message => {
     const root = document.querySelector('#modalroot');
     if (!root) return;
-    root.innerHTML = `<div class="overlay"><div class="modal" style="width:min(520px,100%)">
-      <div class="modalhead"><h2>উত্তরা সুজ · সদস্য লগইন</h2></div>
-      <p class="small">নিজের ইমেইল ও পাসওয়ার্ড দিয়ে প্রবেশ করুন। নতুন সদস্যের অ্যাকাউন্ট পরিচালক অনুমোদন করবেন।</p>
-      <p id="cloudMessage" class="danger">${esc(message || '')}</p>
+    root.innerHTML = `<div class="overlay"><div class="modal" style="width:min(440px,100%);padding:28px;border-radius:18px">
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:30px;font-weight:800;line-height:1.2;margin-bottom:8px">উত্তরা সুজ</div>
+        <div style="font-size:19px;font-weight:700;margin-bottom:6px">ব্যবস্থাপনা পরিচালকের লগইন</div>
+        <div class="small">উৎপাদন ও বিক্রয় ব্যবস্থাপনা সিস্টেম</div>
+      </div>
+      <p id="cloudMessage" class="${message ? 'danger' : 'small'}" style="min-height:20px;margin-bottom:14px">${esc(message || '')}</p>
       <form onsubmit="cloudSignIn(event)">
-        <label>ইমেইল<input id="cloudEmail" type="email" autocomplete="username" required style="width:100%;margin:5px 0 12px"></label>
-        <label>পাসওয়ার্ড<input id="cloudPassword" type="password" autocomplete="current-password" minlength="8" required style="width:100%;margin:5px 0 12px"></label>
-        <button class="btn" type="submit">লগইন</button>
+        <label style="display:block;font-weight:600;margin-bottom:6px">ইমেইল
+          <input id="cloudEmail" type="email" autocomplete="username" value="uttarashoe8@gmail.com" placeholder="ইমেইল লিখুন" required style="width:100%;box-sizing:border-box;margin:5px 0 14px">
+        </label>
+        <label style="display:block;font-weight:600;margin-bottom:6px">পাসওয়ার্ড
+          <input id="cloudPassword" type="password" autocomplete="current-password" minlength="8" placeholder="পাসওয়ার্ড লিখুন" required style="width:100%;box-sizing:border-box;margin:5px 0 8px">
+        </label>
+        <button class="btn" type="submit" style="width:100%;margin-top:12px;min-height:46px;font-size:16px;font-weight:700">ব্যবস্থাপনা পরিচালক লগইন</button>
       </form>
-      <details style="margin-top:18px"><summary>নতুন সদস্যের অ্যাকাউন্ট তৈরি</summary>
-        <form onsubmit="cloudSignUp(event)" style="margin-top:12px">
-          <label>নাম<input id="cloudName" required maxlength="80" style="width:100%;margin:5px 0 10px"></label>
-          <label>ইমেইল<input id="cloudNewEmail" type="email" autocomplete="email" required style="width:100%;margin:5px 0 10px"></label>
-          <label>পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)<input id="cloudNewPassword" type="password" autocomplete="new-password" minlength="8" required style="width:100%;margin:5px 0 10px"></label>
-          <button class="btn secondary" type="submit">অ্যাকাউন্ট তৈরি</button>
-        </form>
-      </details>
+      <div class="small" style="text-align:center;margin-top:18px;line-height:1.6">শুধুমাত্র অনুমোদিত ব্যবস্থাপনা অ্যাকাউন্ট এই সিস্টেমে প্রবেশ করতে পারবে।</div>
     </div></div>`;
   };
 
   window.showAuth = buildAuth;
   window.cloudSignIn = async event => {
     event.preventDefault();
-    if (!client) return showError('Supabase সংযোগ শুরু হয়নি; পেজটি আবার খুলুন');
+    if (!client) return showError('Supabase সংযোগ শুরু হয়নি; পেজটি আবার খুলুন।');
+    const emailNode = document.querySelector('#cloudEmail');
+    const passwordNode = document.querySelector('#cloudPassword');
+    if (!emailNode || !passwordNode) return showError('লগইন ফর্ম পাওয়া যায়নি। পেজটি আবার খুলুন।');
+    const email = emailNode.value.trim().toLowerCase();
+    const password = passwordNode.value;
+    if (!email) return showError('ইমেইল লিখুন।');
+    if (!password) return showError('পাসওয়ার্ড লিখুন।');
     setStatus('লগইন হচ্ছে…');
-    const email = document.querySelector('#cloudEmail').value.trim();
-    const password = document.querySelector('#cloudPassword').value;
     const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error) return showError(normalizeError(error));
-    try { await enterApp(data.user); } catch (problem) { showError(normalizeError(problem)); }
-  };
-  window.cloudSignUp = async event => {
-    event.preventDefault();
-    if (!client) return showError('Supabase সংযোগ শুরু হয়নি; পেজটি আবার খুলুন');
-    setStatus('অ্যাকাউন্ট তৈরি হচ্ছে…');
-    const displayName = document.querySelector('#cloudName').value.trim();
-    const email = document.querySelector('#cloudNewEmail').value.trim();
-    const password = document.querySelector('#cloudNewPassword').value;
-    const { data, error } = await client.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
-    if (error) return showError(normalizeError(error));
-    if (data.session) {
-      try { await enterApp(data.user); } catch (problem) { showError(normalizeError(problem)); }
-    } else {
-      setStatus('ইমেইল যাচাই করুন। এরপর পরিচালক আপনার অ্যাকাউন্ট অনুমোদন করবেন।');
+    if (error) return showError('ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।');
+    if (!data?.user) return showError('লগইন করা যায়নি। আবার চেষ্টা করুন।');
+    try {
+      await enterApp(data.user);
+    } catch (problem) {
+      await client.auth.signOut();
+      signedUser = null;
+      member = null;
+      cloudActive = false;
+      buildAuth(normalizeError(problem));
     }
+  };
+
+  window.cloudSignUp = async event => {
+    if (event) event.preventDefault();
+    return showError('নতুন সদস্যের অ্যাকাউন্ট এই লগইন স্ক্রিন থেকে তৈরি করা যায় না। ব্যবস্থাপনা পরিচালকের অনুমোদিত ব্যবস্থায় সদস্য যুক্ত করুন।');
   };
 
   const readRecords = async () => {
@@ -369,14 +373,20 @@
   };
 
   window.logout = async function () {
-    cloudActive = false;
-    signedUser = null;
-    member = null;
-    baseline = null;
-    await client.auth.signOut();
-    currentUser = '';
-    page = 'home';
-    buildAuth();
+    try {
+      cloudActive = false;
+      signedUser = null;
+      member = null;
+      baseline = null;
+      memberRows = [];
+      if (client) await client.auth.signOut();
+    } catch (error) {
+      console.warn('Logout error:', normalizeError(error));
+    } finally {
+      currentUser = '';
+      page = 'home';
+      buildAuth('আপনি সফলভাবে লগআউট করেছেন।');
+    }
   };
 
   async function refreshSharedData(shouldRender = true) {
@@ -413,251 +423,3 @@
   window.showAuth = buildAuth;
   start().catch(error => showError(normalizeError(error)));
 })();
-// ==========================================================
-// পরিচালকের (Admin) জন্য এসআর (SR) নিয়মাবলী ও বেতন প্যানেল কোড
-// ==========================================================
-
-// ১. এসআর নিয়মাবলী সংযোজন (শুধুমাত্র পরিচালকের জন্য)
-async function addSRRule(title, description) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.user_metadata.role === 'admin') {
-        const { error } = await supabase.from('sr_rules').insert([{ rule_title: title, rule_description: description }]);
-        if (error) alert('ত্রুটি: ' + error.message);
-        else alert('এসআর নিয়মাবলী সফলভাবে সংযোজন করা হয়েছে!');
-    } else {
-        alert('দুঃখিত! এই ক্ষমতা শুধুমাত্র পরিচালকের রয়েছে।');
-    }
-}
-
-// ২. এসআর নিয়মাবলী বিয়োজন বা ডিলিট (শুধুমাত্র পরিচালকের জন্য)
-async function deleteSRRule(ruleId) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.user_metadata.role === 'admin') {
-        const { error } = await supabase.from('sr_rules').delete().eq('id', ruleId);
-        if (error) alert('মুছে ফেলতে সমস্যা হয়েছে।');
-        else alert('নিয়মটি সফলভাবে বিয়োজন করা হয়েছে।');
-    }
-}
-
-// ৩. বেতন ও অন্যান্য সুযোগ সুবিধা যোগ করার ফাংশন
-async function addSRSalaryAndBenefits(srData) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.user_metadata.role === 'admin') {
-        const { error } = await supabase.from('sr_salary_benefits').insert([srData]);
-        if (error) alert('বেতন তথ্য সেভ হয়নি।');
-        else alert('এসআর-এর বেতন ও সুযোগ-সুবিধা সফলভাবে যুক্ত হয়েছে!');
-    }
-}
-// ==========================================================
-// কোম্পানির নিচের লাইভ নোটিশ বোর্ড লজিক (রিয়েল-টাইম)
-// ==========================================================
-
-function listenToCompanyNotice(userRole) {
-    // লগইন করা ব্যক্তি পরিচালক (admin) হলে নোটিশ ইনপুট ফর্মটি দৃশ্যমান হবে
-    if (userRole === 'admin') {
-        const noticeForm = document.getElementById('admin-notice-form');
-        if (noticeForm) noticeForm.style.display = 'block';
-    }
-
-    // Supabase ডাটাবেজ থেকে রিয়েল-টাইম নোটিশের পরিবর্তন ট্র্যাক করা
-    supabase
-        .channel('public:shoes_data')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'shoes_data', filter: "data_key=eq.company_notice" }, (payload) => {
-            if (payload.new && payload.new.content) {
-                displayNotice(payload.new.content.text);
-            }
-        })
-        .subscribe();
-
-    // পেজ ওপেন হওয়ার সাথে সাথে ডাটাবেজের সর্বশেষ নোটিশটি স্ক্রিনে আনা
-    fetchLatestNotice();
-}
-
-async function fetchLatestNotice() {
-    const { data, error } = await supabase.from('shoes_data').select('content').eq('data_key', 'company_notice').single();
-    if (!error && data && data.content) {
-        displayNotice(data.content.text);
-    }
-}
-
-function displayNotice(noticeText) {
-    const noticeDisplay = document.getElementById('live-notice-display');
-    if (noticeDisplay) {
-        if (noticeText) {
-            noticeDisplay.innerHTML = `<strong class="text-danger">[সর্বশেষ আপডেট]:</strong> ${noticeText}`;
-        } else {
-            noticeDisplay.innerHTML = `<span class="text-muted"><em>বর্তমানে কোনো নতুন নোটিশ নেই।</em></span>`;
-        }
-    }
-}
-
-// পরিচালকের নোটিশ পাবলিশ বাটনের লজিক
-window.addEventListener('DOMContentLoaded', () => {
-    const btnPublish = document.getElementById('btn-publish-notice');
-    if (btnPublish) {
-        btnPublish.addEventListener('click', async () => {
-            const noticeInput = document.getElementById('new-notice-text').value.trim();
-            if (!noticeInput) return alert('দয়া করে নোটিশের মূল বক্তব্যটি লিখুন।');
-
-            // Supabase ডাটাবেজে নতুন নোটিশটি সেভ বা ওভাররাইট করা
-            const { error } = await supabase
-                .from('shoes_data')
-                .upsert([{ data_key: 'company_notice', content: { text: noticeInput } }], { onConflict: 'data_key' });
-
-            if (error) {
-                alert('নোটিশ পাবলিশ করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।');
-            } else {
-                alert('কোম্পানির নোটিশটি সফলভাবে জারি হয়েছে! সব সদস্যের স্ক্রিনে এটি আপডেট হয়ে গেছে।');
-                document.getElementById('new-notice-text').value = ''; // বক্সটি খালি করা
-            }
-        });
-    }
-});
-
-// ==========================================================
-// ১. কোম্পানির লাইভ নোটিশ বোর্ড লজিক (ম্যানেজার ও পরিচালক)
-// ==========================================================
-function listenToCompanyNotice(userRole) {
-    // নোটিশ বোর্ড সবার জন্য অন থাকবে
-    const noticeForm = document.getElementById('admin-notice-form');
-    if (noticeForm) noticeForm.style.display = 'block';
-
-    supabase
-        .channel('public:shoes_data')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'shoes_data', filter: "data_key=eq.company_notice" }, (payload) => {
-            if (payload.new && payload.new.content) {
-                displayNotice(payload.new.content.text);
-            }
-        })
-        .subscribe();
-
-    fetchLatestNotice();
-}
-
-async function fetchLatestNotice() {
-    const { data, error } = await supabase.from('shoes_data').select('content').eq('data_key', 'company_notice').single();
-    if (!error && data && data.content) {
-        displayNotice(data.content.text);
-    }
-}
-
-function displayNotice(noticeText) {
-    const noticeDisplay = document.getElementById('live-notice-display');
-    if (noticeDisplay) {
-        if (noticeText) {
-            noticeDisplay.innerHTML = `<strong class="text-danger">[সর্বশেষ নোটিশ]:</strong> ${noticeText}`;
-        } else {
-            noticeDisplay.innerHTML = `<span class="text-muted"><em>বর্তমানে কোনো নতুন নোটিশ নেই।</em></span>`;
-        }
-    }
-}
-
-// ==========================================================
-// ২. এসআর নিয়মাবলী সংযোজন ও বিয়োজন লজিক (ফিক্সড তালিকাসহ)
-// ==========================================================
-function listenToSRRules(userRole) {
-    const adminForm = document.getElementById('admin-sr-rule-form');
-    if(adminForm) adminForm.style.display = 'block';
-
-    supabase
-        .channel('public:shoes_data')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'shoes_data', filter: "data_key=eq.sr_rules" }, (payload) => {
-            renderRules(payload.new.content, userRole);
-        })
-        .subscribe();
-
-    fetchInitialRules(userRole);
-}
-
-async function fetchInitialRules(userRole) {
-    const { data, error } = await supabase.from('shoes_data').select('content').eq('data_key', 'sr_rules').single();
-    
-    // আপনার ফিক্সড ৯টি মূল দায়িত্বের তালিকা
-    const defaultRules = [
-        { id: 1, title: "1. নির্ধারিত এলাকার দোকান পরিদর্শন", desc: "নিজের দায়িত্বে থাকা এলাকার জুতার দোকান নিয়মিত ভিজিট করে সম্পর্ক বজায় রাখা এবং দোকানের চাহিদা জানা।" },
-        { id: 2, title: "2. নতুন retailer ও dealer তৈরি", desc: "সম্ভাবনাময় নতুন খুচরা বিক্রেতা ও ডিলার খুঁজে বের করে পরিচিতি, যোগাযোগের তথ্য এবং ব্যবসার প্রয়োজন সংগ্রহ করা।" },
-        { id: 3, title: "3. অর্ডার সংগ্রহ", desc: "দোকানদারের চাহিদা অনুযায়ী মডেল, সাইজ, রং ও পরিমাণ নিশ্চিত করে অর্ডার সংগ্রহ এবং সফটওয়্যারে সঠিকভাবে নথিভুক্ত করা।" },
-        { id: 4, title: "4. বকেয়া আদায়ে সহযোগিতা", desc: "দোকানদারকে পাওনার কথা জানানো, পরিশোধের সময় সমন্বয় করা এবং আদায়ের তথ্য সংশ্লিষ্ট দায়িত্বপ্রাপ্ত ব্যক্তিকে জানানো।" },
-        { id: 5, title: "5. নতুন মডেল ও অফার জানানো", desc: "কোম্পানির নতুন মডেল, পণ্য এবং অনুমোদিত অফার দোকানদারদের কাছে তুলে ধরা।" },
-        { id: 6, title: "6. বাজার ও প্রতিযোগী ব্র্যান্ডের তথ্য", desc: "প্রতিযোগী ব্র্যান্ডের পণ্যের দাম, নতুন মডেল, অফার এবং এলাকার বাজার পরিস্থিতির তথ্য সংগ্রহ করে রিপোর্ট করা।" },
-        { id: 7, title: "7. দৈনিক ভিজিট ও অর্ডার রিপোর্ট", desc: "প্রতিদিন কোন দোকান ভিজিট হয়েছে, কী আলোচনা হয়েছে, কী অর্ডার পাওয়া গেছে এবং কী ফলোআপ বাকি আছে তা রিপোর্ট করা।" },
-        { id: 8, title: "8. অনুমোদিত মূল্য ও ছাড় মেনে চলা", desc: "কোম্পানির অনুমোদিত মূল্যতালিকা ও ডিসকাউন্ট নীতি অনুসরণ করা। অনুমোদনের বাইরে কোনো দামে বিক্রি বা ছাড় দেওয়া যাবে না।" },
-        { id: 9, title: "9. কোম্পানির টাকা ও পণ্যের হিসাব জমা", desc: "নিজের কাছে কোম্পানির কোনো টাকা, পণ্য বা নথি না থাকলে তার পূর্ণ হিসাবসহ নির্ধারিত নিয়মে জমা দেওয়া এবং জমার প্রমাণ সংরক্ষণ করা।" }
-    ];
-
-    if (!error && data) {
-        renderRules(data.content, userRole);
-    } else {
-        // যদি ডাটাবেজ একদম নতুন বা খালি থাকে, তবে ফিক্সড তালিকাটি ক্লাউডে ফার্স্ট টাইম সেভ হবে
-        await supabase.from('shoes_data').upsert([{ data_key: 'sr_rules', content: defaultRules }], { onConflict: 'data_key' });
-        renderRules(defaultRules, userRole);
-    }
-}
-
-function renderRules(rulesList, userRole) {
-    const tbody = document.getElementById('sr-rules-list');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-
-    rulesList.forEach((rule) => {
-        // ম্যানেজার বা এডমিন সবার জন্যই লাল "বিয়োজন" বাটনটি থাকবে
-        let deleteBtn = `<td><button class="btn btn-sm btn-danger text-white" onclick="deleteRuleAction(${rule.id})">বিয়োজন</button></td>`;
-        
-        tbody.innerHTML += `
-            <tr>
-                <td style="width: 25%; font-weight: bold; padding: 12px;">${rule.title}</td>
-                <td style="text-align: left; padding: 12px; color: #555;">${rule.desc}</td>
-                ${deleteBtn}
-            </tr>
-        `;
-    });
-}
-
-// ==========================================================
-// ৩. বাটন ক্লিক ইভেন্টসমূহ
-// ==========================================================
-window.addEventListener('DOMContentLoaded', () => {
-    const btnPublish = document.getElementById('btn-publish-notice');
-    if (btnPublish) {
-        btnPublish.addEventListener('click', async () => {
-            const noticeInput = document.getElementById('new-notice-text').value.trim();
-            if (!noticeInput) return alert('দয়া করে নোটিশের মূল বক্তব্যটি লিখুন।');
-
-            const { error } = await supabase.from('shoes_data').upsert([{ data_key: 'company_notice', content: { text: noticeInput } }], { onConflict: 'data_key' });
-            if (error) alert('নোটিশ পাবলিশ করতে সমস্যা হয়েছে।');
-            else {
-                alert('কোম্পানির নোটিশটি সফলভাবে জারি হয়েছে!');
-                document.getElementById('new-notice-text').value = '';
-            }
-        });
-    }
-
-    const btnAddRule = document.getElementById('btn-add-rule');
-    if(btnAddRule) {
-        btnAddRule.addEventListener('click', async () => {
-            const titleInput = document.getElementById('new-rule-title').value.trim();
-            const descInput = document.getElementById('new-rule-desc').value.trim();
-            if(!titleInput || !descInput) return alert('দয়া করে নিয়মের নাম ও বিবরণ দুটিই লিখুন।');
-
-            const { data } = await supabase.from('shoes_data').select('content').eq('data_key', 'sr_rules').single();
-            let currentRules = data ? data.content : [];
-            currentRules.push({ id: Date.now(), title: titleInput, desc: descInput });
-
-            await supabase.from('shoes_data').upsert([{ data_key: 'sr_rules', content: currentRules }], { onConflict: 'data_key' });
-            document.getElementById('new-rule-title').value = '';
-            document.getElementById('new-rule-desc').value = '';
-            alert('নতুন নিয়ম সফলভাবে সংযোজন করা হয়েছে!');
-        });
-    }
-});
-
-window.deleteRuleAction = async function(ruleId) {
-    if(confirm('আপনি কি নিশ্চিত যে এই নিয়মটি বিয়োজন করতে চান?')) {
-        const { data } = await supabase.from('shoes_data').select('content').eq('data_key', 'sr_rules').single();
-        if(data) {
-            let filteredRules = data.content.filter(rule => rule.id !== ruleId);
-            await supabase.from('shoes_data').upsert([{ data_key: 'sr_rules', content: filteredRules }], { onConflict: 'data_key' });
-            alert('নিয়মটি সফলভাবে বিয়োজন করা হয়েছে!');
-        }
-    }
-}
