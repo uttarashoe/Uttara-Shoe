@@ -336,7 +336,7 @@ function openSRNoticePage() {
                 <div class="container-fluid my-4">
                     <div class="card shadow-sm p-4 text-start">
                         <h3 class="mb-4 text-primary">📋 এসআর-এর দায়িত্ব ও নিয়মাবলী</h3>
-                        <div id="admin-sr-rule-form" class="mb-4 p-3 border rounded bg-light" style="display: none;">
+                        <div id="admin-sr-rule-form" class="mb-4 p-3 border rounded bg-light">
                             <h6 class="fw-bold mb-2">নতুন নিয়ম সংযোজন (পরিচালক প্যানেল)</h6>
                             <div class="row g-3">
                                 <div class="col-md-4"><input type="text" id="new-rule-title" class="form-control form-control-sm" placeholder="নিয়মের নাম"></div>
@@ -370,27 +370,9 @@ function openSRNoticePage() {
         `;
         titleArea.insertAdjacentHTML('afterend', loginHTML);
 
-        // ৩. পাসওয়ার্ড চেক করার বাটন লজিক
-        const btnVerify = document.getElementById('btn-verify-director');
-        if (btnVerify) {
-            btnVerify.addEventListener('click', () => {
-                const inputPass = document.getElementById('director-pass-input').value;
-                
-                // আপনার পছন্দমতো মাস্টার পাসওয়ার্ড এখানে সেট করুন (যেমন: 4506569)
-                if (inputPass === '4506569') { 
-                    alert('পরিচালক হিসেবে সফলভাবে ভেরিফাইড! সকল ক্ষমতা সচল করা হলো।');
-                    
+        if (typeof listenToSRRules === 'function') listenToSRRules('admin');
+if (typeof listenToCompanyNotice === 'function') listenToCompanyNotice('admin');
 
-                    
-                    // সকল এডিট ও নোটিশ ফর্ম সবার সামনে ওপেন করা
-                    if (document.getElementById('admin-sr-rule-form')) document.getElementById('admin-sr-rule-form').style.display = 'block';
-                    if (document.getElementById('admin-notice-form')) document.getElementById('admin-notice-form').style.display = 'block';
-                    
-                    // ডাটাবেজ ফাংশন রান করা
-                    if (typeof listenToSRRules === 'function') listenToSRRules('admin'); 
-                    if (typeof listenToCompanyNotice === 'function') listenToCompanyNotice('admin');
-                } else {
-                    alert('ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।');
                 }
             });
         }
