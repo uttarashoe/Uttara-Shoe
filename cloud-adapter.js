@@ -48,11 +48,18 @@
     root.innerHTML = `<div class="overlay"><div class="modal" style="width:min(440px,100%);padding:28px;border-radius:18px">
       <div style="text-align:center;margin-bottom:24px">
         <div style="font-size:30px;font-weight:800;line-height:1.2;margin-bottom:8px">উত্তরা সুজ</div>
-        <div style="font-size:19px;font-weight:700;margin-bottom:6px">ব্যবস্থাপনা পরিচালকের লগইন</div>
+        <div style="font-size:19px;font-weight:700;margin-bottom:6px">উত্তরা সুজ — লগইন</div>
         <div class="small">উৎপাদন ও বিক্রয় ব্যবস্থাপনা সিস্টেম</div>
       </div>
       <p id="cloudMessage" class="${message ? 'danger' : 'small'}" style="min-height:20px;margin-bottom:14px">${esc(message || '')}</p>
       <form onsubmit="cloudSignIn(event)">
+        <label style="display:block;font-weight:600;margin-bottom:6px">লগইনের ধরন
+          <select id="cloudRole" style="width:100%;box-sizing:border-box;margin:5px 0 14px">
+            <option value="manager">ব্যবস্থাপনা পরিচালক</option>
+            <option value="sr">এসআর</option>
+            <option value="staff">কর্মকর্তা / স্টাফ</option>
+          </select>
+        </label>
         <label style="display:block;font-weight:600;margin-bottom:6px">ইমেইল
           <input id="cloudEmail" type="email" autocomplete="username" value="uttarashoe8@gmail.com" placeholder="ইমেইল লিখুন" required style="width:100%;box-sizing:border-box;margin:5px 0 14px">
         </label>
@@ -61,7 +68,8 @@
         </label>
         <button class="btn" type="submit" style="width:100%;margin-top:12px;min-height:46px;font-size:16px;font-weight:700">ব্যবস্থাপনা পরিচালক লগইন</button>
       </form>
-      <div class="small" style="text-align:center;margin-top:18px;line-height:1.6">শুধুমাত্র অনুমোদিত ব্যবস্থাপনা অ্যাকাউন্ট এই সিস্টেমে প্রবেশ করতে পারবে।</div>
+      <button type="button" class="btn secondary" onclick="cloudSignUpForm()" style="width:100%;margin-top:8px">নতুন এসআর / স্টাফ অ্যাকাউন্টের আবেদন</button>
+      <div class="small" style="text-align:center;margin-top:18px;line-height:1.6">এসআর ও স্টাফ অ্যাকাউন্ট ব্যবস্থাপনা পরিচালক অনুমোদন না দেওয়া পর্যন্ত সক্রিয় হবে না।</div>
     </div></div>`;
   };
 
@@ -74,12 +82,22 @@
     if (!emailNode || !passwordNode) return showError('লগইন ফর্ম পাওয়া যায়নি। পেজটি আবার খুলুন।');
     const email = emailNode.value.trim().toLowerCase();
     const password = passwordNode.value;
+    const expectedRole = document.querySelector('#cloudRole')?.value || 'manager';
     if (!email) return showError('ইমেইল লিখুন।');
     if (!password) return showError('পাসওয়ার্ড লিখুন।');
     setStatus('লগইন হচ্ছে…');
     const { data, error } = await client.auth.signInWithPassword({ email, password });
     if (error) return showError('ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।');
     if (!data?.user) return showError('লগইন করা যায়নি। আবার চেষ্টা করুন।');
+    const profile = await verifyMember(data.user.id);
+    if (!profile || !profile.active) {
+      await client.auth.signOut();
+      return buildAuth('অ্যাকাউন্টটি এখনো পরিচালক অনুমোদন করেননি।');
+    }
+    if (profile.role !== expectedRole) {
+      await client.auth.signOut();
+      return buildAuth('এই অ্যাকাউন্টটি নির্বাচিত লগইন ধরনের নয়। সঠিক লগইন ধরন নির্বাচন করুন।');
+    }
     try {
       await enterApp(data.user);
     } catch (problem) {
@@ -91,10 +109,6 @@
     }
   };
 
-  window.cloudSignUp = async event => {
-    if (event) event.preventDefault();
-    return showError('নতুন সদস্যের অ্যাকাউন্ট এই লগইন স্ক্রিন থেকে তৈরি করা যায় না। ব্যবস্থাপনা পরিচালকের অনুমোদিত ব্যবস্থায় সদস্য যুক্ত করুন।');
-  };
 
   const readRecords = async () => {
     const all = [];
@@ -164,7 +178,57 @@
     if (error) throw error;
     return data;
   };
-  const enterApp = async authUser => {
+  
+  window.cloudSignUpForm = function () {
+    const root = document.querySelector('#modalroot');
+    if (!root) return;
+    root.innerHTML = `<div class="overlay"><div class="modal" style="width:min(440px,100%);padding:28px;border-radius:18px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:24px;font-weight:800">নতুন অ্যাকাউন্টের আবেদন</div>
+        <div class="small">পরিচালক অনুমোদনের পর অ্যাকাউন্ট চালু হবে</div>
+      </div>
+      <p id="cloudMessage" class="small" style="min-height:20px;margin-bottom:14px"></p>
+      <form onsubmit="cloudSignUp(event)">
+        <label style="display:block;font-weight:600">নাম
+          <input id="signupName" required style="width:100%;box-sizing:border-box;margin:5px 0 12px">
+        </label>
+        <label style="display:block;font-weight:600">অ্যাকাউন্টের ধরন
+          <select id="signupRole" style="width:100%;box-sizing:border-box;margin:5px 0 12px">
+            <option value="sr">এসআর</option>
+            <option value="staff">কর্মকর্তা / স্টাফ</option>
+          </select>
+        </label>
+        <label style="display:block;font-weight:600">ইমেইল
+          <input id="signupEmail" type="email" required style="width:100%;box-sizing:border-box;margin:5px 0 12px">
+        </label>
+        <label style="display:block;font-weight:600">পাসওয়ার্ড
+          <input id="signupPassword" type="password" minlength="8" required style="width:100%;box-sizing:border-box;margin:5px 0 12px">
+        </label>
+        <button class="btn" type="submit" style="width:100%;min-height:44px">আবেদন জমা দিন</button>
+      </form>
+      <button type="button" class="btn secondary" onclick="buildAuth()" style="width:100%;margin-top:8px">লগইনে ফিরে যান</button>
+    </div></div>`;
+  };
+
+  window.cloudSignUp = async function (event) {
+    event.preventDefault();
+    if (!client) return showError('Supabase সংযোগ শুরু হয়নি; পেজটি আবার খুলুন।');
+    const displayName = document.querySelector('#signupName')?.value.trim();
+    const email = document.querySelector('#signupEmail')?.value.trim().toLowerCase();
+    const password = document.querySelector('#signupPassword')?.value;
+    const role = document.querySelector('#signupRole')?.value || 'staff';
+    if (!displayName || !email || !password) return showError('সব তথ্য পূরণ করুন।');
+    setStatus('অ্যাকাউন্ট তৈরি হচ্ছে…');
+    const { data, error } = await client.auth.signUp({
+      email, password,
+      options: { data: { display_name: displayName, requested_role: role } }
+    });
+    if (error) return showError(normalizeError(error));
+    if (!data.user) return showError('অ্যাকাউন্ট তৈরি করা যায়নি।');
+    buildAuth('আবেদন জমা হয়েছে। পরিচালক অনুমোদন দেওয়ার পর নির্বাচিত লগইন ধরনের মাধ্যমে প্রবেশ করতে পারবেন।');
+  };
+
+const enterApp = async authUser => {
     if (refreshing) return;
     refreshing = true;
     signedUser = authUser;
@@ -353,12 +417,12 @@
     if (error) { el.innerHTML = title('সদস্য ব্যবস্থাপনা','তথ্য আনা যায়নি') + `<div class="notice">${esc(normalizeError(error))}</div>`; return; }
     const pages = Object.entries(pageNames()).filter(([key]) => !['home','userAdmin'].includes(key));
     const rows = (data || []).map(profile => `<tr><td><b>${esc(profile.display_name)}</b><div class="small">${esc(profile.email || '')}</div></td>
-      <td><select class="member-role" data-user="${esc(profile.user_id)}"><option value="staff" ${profile.role==='staff'?'selected':''}>সদস্য</option><option value="manager" ${profile.role==='manager'?'selected':''}>ম্যানেজার</option></select></td>
+      <td><select class="member-role" data-user="${esc(profile.user_id)}"><option value="staff" ${profile.role==='staff'?'selected':''}>কর্মকর্তা / স্টাফ</option><option value="sr" ${profile.role==='sr'?'selected':''}>এসআর</option><option value="manager" ${profile.role==='manager'?'selected':''}>ম্যানেজার</option></select></td>
       <td><label><input type="checkbox" class="member-active" data-user="${esc(profile.user_id)}" ${profile.active?'checked':''}> সক্রিয়</label>
       <div class="small">সর্বোচ্চ ছাড় (%) <input class="member-discount" data-user="${esc(profile.user_id)}" type="number" min="0" max="100" value="${Number(profile.max_discount)||0}" style="width:75px;padding:5px"></div></td>
       <td><div style="min-width:230px;max-width:440px">${pages.map(([key,label])=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0"><input type="checkbox" class="member-permission" data-user="${esc(profile.user_id)}" value="${esc(key)}" ${(profile.permissions||[]).includes(key)?'checked':''}>${esc(label)}</label>`).join('')}</div></td>
       <td><button class="btn" onclick="saveCloudMember('${esc(profile.user_id)}')">সংরক্ষণ</button></td></tr>`).join('');
-    el.innerHTML = title('সদস্য ও অনুমতি','নতুন সদস্য অ্যাকাউন্ট তৈরি করলে এখানে সক্রিয় করুন এবং কাজের অনুমতি দিন।') + table(['সদস্য','ভূমিকা','অ্যাকাউন্ট','পৃষ্ঠা অনুমতি',''],rows,'এখনও কোনো সদস্য নেই');
+    el.innerHTML = title('এসআর / কর্মকর্তা / স্টাফ অনুমোদন','নতুন অ্যাকাউন্ট আবেদন এখানে সক্রিয় করুন, ভূমিকা দিন এবং প্রয়োজনীয় পৃষ্ঠা অনুমতি নির্বাচন করুন।') + table(['সদস্য','ভূমিকা','অ্যাকাউন্ট','পৃষ্ঠা অনুমতি',''],rows,'এখনও কোনো সদস্য নেই');
   };
   window.saveCloudMember = async userId => {
     if (!memberIsManager()) return showError('শুধু ম্যানেজার সদস্যের অনুমতি বদলাতে পারবেন।');

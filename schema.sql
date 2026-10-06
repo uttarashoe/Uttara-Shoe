@@ -5,7 +5,7 @@ create table if not exists public.app_members (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null,
   email text not null default '',
-  role text not null default 'staff' check (role in ('manager', 'staff')),
+  role text not null default 'staff' check (role in ('manager', 'staff', 'sr')),
   permissions text[] not null default '{}',
   max_discount numeric not null default 0 check (max_discount >= 0 and max_discount <= 100),
   active boolean not null default false,
@@ -405,7 +405,14 @@ create policy "manager removes members" on public.app_members
 drop policy if exists "active members read app records" on public.app_records;
 create policy "active members read app records" on public.app_records
   for select to authenticated
-  using (public.uttara_can_read(collection));
+  using (
+    public.uttara_can_read(collection)
+    and (
+      collection <> 'srVisits'
+      or public.uttara_member_manager()
+      or owner_id = (select auth.uid())
+    )
+  );
 
 drop policy if exists "members append own activity logs" on public.app_records;
 create policy "members append own activity logs" on public.app_records
