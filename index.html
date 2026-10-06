@@ -19,7 +19,8 @@ function productionPage(el){let stages=['পরিকল্পনা','কাট
   const tx=db.capitalTransactions||[];
   const amountOf=x=>Number(x?.amount??x?.total??x?.paid??x?.netPay??x?.salary??0)||0;
   const saleRows=db.sales||[];
-  const knownSalesRows=saleRows.filter(s=>s.costTotal!=null);\n  const sales=knownSalesRows.reduce((a,s)=>a+Number(s.total||0),0);
+  const knownSalesRows=saleRows.filter(s=>s.costTotal!=null);
+  const sales=knownSalesRows.reduce((a,s)=>a+Number(s.total||0),0);
   const cogs=saleRows.filter(s=>s.costTotal!=null).reduce((a,s)=>a+Number(s.costTotal||0),0);
   const gross=sales-cogs;
   const salaries=(db.employeePayments||[]).reduce((a,p)=>a+amountOf(p),0);
