@@ -59,11 +59,13 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
   };
   window.allowedPages = function (name) {
     const manager = !!db.access[name || user()]?.manager;
-    return [...new Set([...originalAllowedPages(name).filter(key => key !== doPadKey), pageKey, ...(manager ? [doPadKey] : [])])];
+    const sr = !!db.access[name || user()]?.sr;
+    return [...new Set([...originalAllowedPages(name).filter(key => key !== doPadKey), ...(sr || manager ? [pageKey] : []), ...(manager ? [doPadKey] : [])])];
   };
   window.canAccess = function (page) {
     if (page === doPadKey) return !!db.access[user()]?.manager;
-    return page === pageKey || originalCanAccess(page);
+    if (page === pageKey) return !!db.access[user()]?.sr || !!db.access[user()]?.manager;
+    return originalCanAccess(page);
   };
   window.saveSrVisit = function () {
     const shop = document.querySelector('#srShop').value.trim();
