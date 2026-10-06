@@ -89,6 +89,15 @@
     const { data, error } = await client.auth.signInWithPassword({ email, password });
     if (error) return showError('ইমেইল অথবা পাসওয়ার্ড সঠিক নয়।');
     if (!data?.user) return showError('লগইন করা যায়নি। আবার চেষ্টা করুন।');
+    const profile = await verifyMember(data.user.id);
+    if (!profile || !profile.active) {
+      await client.auth.signOut();
+      return buildAuth('অ্যাকাউন্টটি এখনো পরিচালক অনুমোদন করেননি।');
+    }
+    if (profile.role !== expectedRole) {
+      await client.auth.signOut();
+      return buildAuth('এই অ্যাকাউন্টটি নির্বাচিত লগইন ধরনের নয়। সঠিক লগইন ধরন নির্বাচন করুন।');
+    }
     try {
       await enterApp(data.user);
     } catch (problem) {
@@ -100,10 +109,6 @@
     }
   };
 
-  window.cloudSignUp = async event => {
-    if (event) event.preventDefault();
-    return showError('নতুন সদস্যের অ্যাকাউন্ট এই লগইন স্ক্রিন থেকে তৈরি করা যায় না। ব্যবস্থাপনা পরিচালকের অনুমোদিত ব্যবস্থায় সদস্য যুক্ত করুন।');
-  };
 
   const readRecords = async () => {
     const all = [];
