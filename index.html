@@ -19,7 +19,7 @@ function productionPage(el){let stages=['পরিকল্পনা','কাট
   const tx=db.capitalTransactions||[];
   const amountOf=x=>Number(x?.amount??x?.total??x?.paid??x?.netPay??x?.salary??0)||0;
   const saleRows=db.sales||[];
-  const sales=saleRows.reduce((a,s)=>a+Number(s.total||0),0);
+  const knownSalesRows=saleRows.filter(s=>s.costTotal!=null);\n  const sales=knownSalesRows.reduce((a,s)=>a+Number(s.total||0),0);
   const cogs=saleRows.filter(s=>s.costTotal!=null).reduce((a,s)=>a+Number(s.costTotal||0),0);
   const gross=sales-cogs;
   const salaries=(db.employeePayments||[]).reduce((a,p)=>a+amountOf(p),0);
@@ -29,9 +29,9 @@ function productionPage(el){let stages=['পরিকল্পনা','কাট
   const additions=tx.filter(x=>x.type==='contribution').reduce((a,x)=>a+amountOf(x),0);
   const withdrawals=tx.filter(x=>x.type==='withdrawal').reduce((a,x)=>a+amountOf(x),0);
   const currentCapital=primary+additions-withdrawals+netProfit;
-  const knownProfitSales=saleRows.filter(s=>s.profit!=null).length;
+  const knownProfitSales=knownSalesRows.length;
   const rows=tx.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${esc(x.type==='opening'?'প্রাথমিক মূলধন':x.type==='contribution'?'নতুন মূলধন সংযোজন':'মূলধন উত্তোলন')}</td><td>${money(amountOf(x))}</td><td>${esc(x.note||'')}</td><td><button class="btn secondary" onclick="deleteCapitalTransaction('${esc(x.id)}')">মুছুন</button></td></tr>`).join('');
-  el.innerHTML=title('মূলধন ও লাভ/ক্ষতি','বিক্রি, পণ্যের বিক্রিত খরচ, বেতন ও অন্যান্য খরচ থেকে স্বয়ংক্রিয় হিসাব; মূলধন সংযোজন ও উত্তোলন আলাদাভাবে নথিভুক্ত করুন.',btn('＋ মূলধন লেনদেন','openCapitalTransaction()'))+
+  el.innerHTML=title('মূলধন ও লাভ/ক্ষতি','বিক্রি, পণ্যের বিক্রিত খরচ, বেতন ও অন্যান্য খরচ থেকে স্বয়ংক্রিয় হিসাব; মূলধন সংযোজন ও উত্তোলন আলাদাভাবে নথিভুক্ত করুন.',btn('＋ মূলধন লেনদেন','openCapitalTransaction()')+' '+btn('＋ বেতন প্রদান','openSalaryPayment()')+' '+btn('＋ অন্যান্য খরচ','openOtherExpense()'))+
   `<div class="cards">
     <div class="card"><div class="metric">প্রাথমিক মূলধন</div><div class="value">${money(primary)}</div><div class="small">প্রারম্ভিক ব্যবসায়িক মূলধন</div></div>
     <div class="card"><div class="metric">নতুন মূলধন</div><div class="value">${money(additions)}</div><div class="small">পরবর্তীতে মালিকের সংযোজন</div></div>
@@ -58,6 +58,44 @@ function productionPage(el){let stages=['পরিকল্পনা','কাট
   </div>
   <section class="panel" style="margin-top:14px"><h2>মূলধন লেনদেন</h2>${table(['তারিখ','ধরন','পরিমাণ','নোট','কাজ'],rows,'এখনও কোনো মূলধন লেনদেন যোগ করা হয়নি')}</section>`;
 }
+window.openSalaryPayment=function(){
+  if(!isManager())return;
+  modal('বেতন প্রদান',`<div class="formgrid">
+    <label>কর্মকর্তা / কর্মচারীর নাম<input id="salaryPerson" required></label>
+    <label>তারিখ<input id="salaryDate" type="date" value="${date()}"></label>
+    <label>বেতনের পরিমাণ (টাকা)<input id="salaryAmount" type="number" min="0.01" step="0.01" required></label>
+    <label>পরিশোধের মাধ্যম<select id="salaryMethod"><option>ক্যাশ</option><option>ব্যাংক</option><option>বিকাশ</option><option>নগদ</option><option>অন্যান্য</option></select></label>
+    <label class="wide">নোট<input id="salaryNote" placeholder="যেমন: অক্টোবর মাসের বেতন"></label>
+  </div>`,'saveSalaryPayment()');
+};
+window.saveSalaryPayment=function(){
+  if(!isManager())return;
+  const person=val('salaryPerson'),amount=num('salaryAmount'),d=val('salaryDate')||date(),method=val('salaryMethod'),note=val('salaryNote')||'';
+  if(!person||amount<=0)return toast('কর্মীর নাম ও বেতনের পরিমাণ দিন');
+  db.employeePayments=db.employeePayments||[];
+  db.employeePayments.push({id:id(),employee:person,person,amount,date:d,method,note,paidBy:user()});
+  logActivity('বেতন প্রদান',person+' · '+money(amount));
+  closeModal();save();toast('বেতন প্রদান সংরক্ষিত হয়েছে');
+};
+window.openOtherExpense=function(){
+  if(!isManager())return;
+  modal('অন্যান্য খরচ',`<div class="formgrid">
+    <label>খরচের ধরন<select id="expenseType"><option>বিদ্যুৎ</option><option>ভাড়া</option><option>পরিবহন</option><option>মেরামত</option><option>বিজ্ঞাপন</option><option>অফিস</option><option>অন্যান্য</option></select></label>
+    <label>তারিখ<input id="expenseDate" type="date" value="${date()}"></label>
+    <label>পরিমাণ (টাকা)<input id="expenseAmount" type="number" min="0.01" step="0.01" required></label>
+    <label>পরিশোধের মাধ্যম<select id="expenseMethod"><option>ক্যাশ</option><option>ব্যাংক</option><option>বিকাশ</option><option>নগদ</option><option>অন্যান্য</option></select></label>
+    <label class="wide">বিস্তারিত / নোট<input id="expenseNote"></label>
+  </div>`,'saveOtherExpense()');
+};
+window.saveOtherExpense=function(){
+  if(!isManager())return;
+  const type=val('expenseType'),amount=num('expenseAmount'),d=val('expenseDate')||date(),method=val('expenseMethod'),note=val('expenseNote')||'';
+  if(amount<=0)return toast('খরচের পরিমাণ দিন');
+  db.expenses=db.expenses||[];
+  db.expenses.push({id:id(),type,category:type,amount,total:amount,date:d,method,note,paidBy:user()});
+  logActivity('অন্যান্য খরচ',type+' · '+money(amount));
+  closeModal();save();toast('খরচ সংরক্ষিত হয়েছে');
+};
 window.openCapitalTransaction=function(){
   modal('মূলধন লেনদেন',`<div class="formgrid">
     <label>লেনদেনের ধরন<select id="capitalType"><option value="opening">প্রাথমিক মূলধন</option><option value="contribution">নতুন মূলধন সংযোজন</option><option value="withdrawal">মূলধন উত্তোলন</option></select></label>
