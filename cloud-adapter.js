@@ -1,7 +1,7 @@
 /* Uttara Shoes Supabase browser adapter. Database authorization is enforced by RLS and RPCs. */
 (() => {
   const config = window.UTTARA_SUPABASE_CONFIG;
-  const collections = ['materials','products','dealers','batches','sales','expenses','activityLogs','supplierPurchases','purchaseOrders','employees','employeePayments','attendance','staffTargets','workTasks','materialUsages','srVisits','doOrders'];
+  const collections = ['materials','products','dealers','batches','sales','expenses','activityLogs','supplierPurchases','purchaseOrders','employees','employeePayments','attendance','staffTargets','workTasks','materialUsages','srVisits','doOrders','capitalTransactions'];
   const extraCollections = ['srVisits','doOrders'];
   const key = (collection, id) => `${collection}:${String(id)}`;
   let client = null;
