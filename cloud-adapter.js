@@ -156,6 +156,7 @@
       next.access[profile.display_name] = {
         approved: profile.active,
         manager: profile.role === 'manager',
+        sr: profile.role === 'sr',
         permissions: profile.role === 'manager' ? [] : (profile.permissions || []),
         maxDiscount: Number(profile.max_discount || 0)
       };
