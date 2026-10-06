@@ -75,7 +75,7 @@ alter table public.app_records add constraint app_records_collection_check check
   'materials', 'products', 'dealers', 'batches', 'sales', 'expenses',
   'supplierPurchases', 'purchaseOrders', 'employees', 'employeePayments',
   'attendance', 'staffTargets', 'workTasks', 'materialUsages', 'srVisits',
-  'doOrders', 'activityLogs', 'capitalTransactions'
+  'doOrders', 'activityLogs', 'capitalTransactions', 'fixedAssets', 'fixedAssets'
 ));
 
 create or replace function public.uttara_member_active()
