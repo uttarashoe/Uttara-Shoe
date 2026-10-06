@@ -147,7 +147,7 @@ function fixedAssetsPage(el){
   </div>
   <section class="panel">
     <div class="toolbar no-print"><input id="fixedAssetSearch" placeholder="দ্রব্যের নাম বা মন্তব্য দিয়ে খুঁজুন" oninput="filterFixedAssets()"><button class="btn secondary" onclick="window.print()">প্রিন্ট / PDF</button></div>
-    ${table(['ক্রমিক','দ্রব্যের নাম','পরিমাণ','একক মূল্য','মোট মূল্য','মন্তব্য','কাজ'],rows,'এখনও কোনো স্থায়ী সম্পদ যোগ করা হয়নি।')}
+    <div class="tablewrap"><table><thead><tr><th>ক্রমিক</th><th>দ্রব্যের নাম</th><th>পরিমাণ</th><th>একক মূল্য</th><th>মোট মূল্য</th><th>মন্তব্য</th><th>কাজ</th></tr></thead><tbody id="fixedAssetBody">${rows||`<tr><td class="empty" colspan="7">এখনও কোনো স্থায়ী সম্পদ যোগ করা হয়নি।</td></tr>`}</tbody></table></div>
   </section>`;
 }
 
