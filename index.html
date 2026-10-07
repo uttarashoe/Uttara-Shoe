@@ -348,11 +348,14 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
   window.saveSrVisit = function () {
     const shop = document.querySelector('#srShop').value.trim();
     if (!shop) return toast('দোকানের নাম লিখুন');
+    const productId = document.querySelector('#srProduct')?.value || '';
+    const kind = document.querySelector('#srKind')?.value || 'ডিলার';
     const record = {
       id: id(), date: document.querySelector('#srDate').value || date(),
       shop, area: document.querySelector('#srArea').value.trim(),
       notes: document.querySelector('#srNotes').value.trim(),
       order: document.querySelector('#srOrder').value.trim(),
+      productId, kind,
       orderQty: Number(document.querySelector('#srOrderQty').value) || 0,
       orderUnit: document.querySelector('#srOrderUnit').value,
       orderValue: Number(document.querySelector('#srOrderValue').value) || 0,
@@ -372,7 +375,9 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
       `<div class="panel"><h2>ভিজিট রিপোর্ট জমা</h2><div class="formgrid">
         <label>তারিখ<input id="srDate" type="date" value="${date()}" required></label>
         <label>দোকানের নাম<input id="srShop" required placeholder="দোকানের নাম"></label>
+        <label>ক্রেতার ধরন<select id="srKind"><option>ডিলার</option><option>পাইকার</option><option>খুচরা বিক্রয়</option></select></label>
         <label>এলাকা<input id="srArea" placeholder="এলাকার নাম"></label>
+        <label>পণ্য নির্বাচন<select id="srProduct"><option value="">পণ্য নির্বাচন করুন</option></select></label>
         <label>অর্ডার / মডেলের বিবরণ<input id="srOrder" placeholder="অর্ডার না থাকলে ফাঁকা রাখুন"></label>
         <label>অর্ডারের পরিমাণ<input id="srOrderQty" type="number" min="0" step="1" value="0"></label>
         <label>পরিমাণের একক<select id="srOrderUnit"><option>সংখ্যা</option><option>ডজন</option></select></label>
@@ -418,10 +423,13 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
     const receiver = document.querySelector('#doReceiver').value.trim();
     const item = document.querySelector('#doItem').value.trim();
     if (!receiver || !item) return toast('প্রাপক ও পণ্যের বিবরণ লিখুন');
+    const productId = document.querySelector('#doProduct')?.value || '';
+    const kind = document.querySelector('#doKind')?.value || 'ডিলার';
     const record = {
       id: id(), no: `DO-${new Date().getFullYear()}-${String(db.doOrders.length + 1).padStart(4, '0')}`,
       date: document.querySelector('#doDate').value || date(), receiver,
       address: document.querySelector('#doAddress').value.trim(), item,
+      productId, kind,
       qty: Number(document.querySelector('#doQty').value) || 0,
       unit: document.querySelector('#doUnit').value,
       value: Number(document.querySelector('#doValue').value) || 0,
@@ -438,7 +446,9 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
     el.innerHTML = title('ডিও প্যাড', 'ব্যবস্থাপনা পরিচালকের অনুমোদিত ডেলিভারি অর্ডার তৈরি ও প্রিন্ট') +
       `<div class="panel"><h2>নতুন ডিও তৈরি</h2><div class="formgrid">
         <label>প্রাপকের নাম<input id="doReceiver" required></label>
+        <label>ক্রেতার ধরন<select id="doKind"><option>ডিলার</option><option>পাইকার</option><option>খুচরা বিক্রয়</option></select></label>
         <label>তারিখ<input id="doDate" type="date" value="${date()}" required></label>
+        <label class="wide">পণ্য নির্বাচন<select id="doProduct"><option value="">পণ্য নির্বাচন করুন</option></select></label>
         <label class="wide">ঠিকানা<input id="doAddress"></label>
         <label class="wide">পণ্য / বিবরণ<input id="doItem" required></label>
         <label>পরিমাণ<input id="doQty" type="number" min="0" step="0.01" value="0"></label>
