@@ -476,7 +476,19 @@ const enterApp = async authUser => {
     const { data, error } = await client.auth.getSession();
     if (error) return showError(normalizeError(error));
     if (data.session?.user) {
-      try { await enterApp(data.session.user); } catch (problem) { showError(normalizeError(problem)); }
+      try {
+        await enterApp(data.session.user);
+      } catch (problem) {
+        console.error('Uttara Shoe startup error:', problem);
+        showError('ড্যাশবোর্ড চালু হতে সমস্যা হয়েছে: ' + normalizeError(problem));
+        try {
+          currentUser = data.session.user.email || 'ব্যবহারকারী';
+          page = 'home';
+          if (typeof render === 'function') render();
+        } catch (fallbackError) {
+          console.error('Uttara Shoe fallback render error:', fallbackError);
+        }
+      }
     }
     setInterval(async () => {
       if (!cloudActive || refreshing || !baseline || (document.querySelector('#modalroot')?.children.length || 0) > 0) return;
