@@ -251,7 +251,7 @@ const enterApp = async authUser => {
       cloudActive = true;
       document.querySelector('#modalroot').innerHTML = '';
       setHeader();
-      if (typeof render === 'function') render();
+      if (typeof window.render === 'function') window.render();
     } finally { refreshing = false; }
   };
 
@@ -329,7 +329,7 @@ const enterApp = async authUser => {
     baseline = snap;
   };
   window.save = function () {
-    if (typeof render === 'function') render();
+    if (typeof window.render === 'function') window.render();
     if (!cloudActive) return;
     const snap = stateSnapshot();
     writeQueue = writeQueue.catch(() => {}).then(() => persistSnapshot(snap)).catch(error => {
@@ -462,7 +462,7 @@ const enterApp = async authUser => {
     const profiles = await loadMembers();
     const records = await readRecords();
     applyCloudData(records, profiles);
-    if (shouldRender && typeof render === 'function') render();
+    if (shouldRender && typeof window.render === 'function') window.render();
   }
   window.refreshCloudData = () => refreshSharedData(true).catch(error => showError(normalizeError(error)));
 
@@ -484,7 +484,7 @@ const enterApp = async authUser => {
         try {
           currentUser = data.session.user.email || 'ব্যবহারকারী';
           page = 'home';
-          if (typeof render === 'function') render();
+          if (typeof window.render === 'function') window.render();
         } catch (fallbackError) {
           console.error('Uttara Shoe fallback render error:', fallbackError);
         }
