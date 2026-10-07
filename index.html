@@ -377,7 +377,7 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
         <label>দোকানের নাম<input id="srShop" required placeholder="দোকানের নাম"></label>
         <label>ক্রেতার ধরন<select id="srKind"><option>ডিলার</option><option>পাইকার</option><option>খুচরা বিক্রয়</option></select></label>
         <label>এলাকা<input id="srArea" placeholder="এলাকার নাম"></label>
-        <label>পণ্য নির্বাচন<select id="srProduct"><option value="">পণ্য নির্বাচন করুন</option></select></label>
+        <label>পণ্য নির্বাচন<select id="srProduct"><option value="">পণ্য নির্বাচন করুন</option>${db.products.map(p=>`<option value="${p.id}">${esc(p.model)} · ${esc(p.color||"")} · ${esc(p.sizes||"")} (মজুত ${bn(p.qty)})</option>`).join("")}</select></label>
         <label>অর্ডার / মডেলের বিবরণ<input id="srOrder" placeholder="অর্ডার না থাকলে ফাঁকা রাখুন"></label>
         <label>অর্ডারের পরিমাণ<input id="srOrderQty" type="number" min="0" step="1" value="0"></label>
         <label>পরিমাণের একক<select id="srOrderUnit"><option>সংখ্যা</option><option>ডজন</option></select></label>
@@ -448,7 +448,7 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
         <label>প্রাপকের নাম<input id="doReceiver" required></label>
         <label>ক্রেতার ধরন<select id="doKind"><option>ডিলার</option><option>পাইকার</option><option>খুচরা বিক্রয়</option></select></label>
         <label>তারিখ<input id="doDate" type="date" value="${date()}" required></label>
-        <label class="wide">পণ্য নির্বাচন<select id="doProduct"><option value="">পণ্য নির্বাচন করুন</option></select></label>
+        <label class="wide">পণ্য নির্বাচন<select id="doProduct"><option value="">পণ্য নির্বাচন করুন</option>${db.products.map(p=>`<option value="${p.id}">${esc(p.model)} · ${esc(p.color||"")} · ${esc(p.sizes||"")} (মজুত ${bn(p.qty)})</option>`).join("")}</select></label>
         <label class="wide">ঠিকানা<input id="doAddress"></label>
         <label class="wide">পণ্য / বিবরণ<input id="doItem" required></label>
         <label>পরিমাণ<input id="doQty" type="number" min="0" step="0.01" value="0"></label>
