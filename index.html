@@ -144,19 +144,20 @@ function payrollPage(el){
   const calc=person=>{
     const basic=Number(person.basicSalary)||0;
     const rec=(db.attendance||[]).filter(x=>x.person===person.name&&String(x.date||'').slice(0,7)===month);
-    const present=rec.filter(x=>x.status==='উপস্থিত').length;
+    const present=rec.filter(x=>x.status==='উপস্থিত'||x.status==='সাপ্তাহিক ছুটি').length;
+    const weeklyHoliday=rec.filter(x=>x.status==='সাপ্তাহিক ছুটি').length;
     const absent=rec.filter(x=>x.status==='অনুপস্থিত').length;
     const leave=rec.filter(x=>x.status==='ছুটি').length;
     const unmarked=Math.max(0,days-rec.length);
     const daily=basic/workDays;
     const hourly=daily/standardHours;
-    const lateMinutes=rec.filter(x=>x.status==='উপস্থিত').reduce((a,x)=>a+(Number(x.lateMinutes)||0),0);
-    const overtimeHours=rec.filter(x=>x.status==='উপস্থিত').reduce((a,x)=>a+(Number(x.overtimeHours)||0),0);
+    const lateMinutes=rec.filter(x=>x.status==='উপস্থিত'||x.status==='সাপ্তাহিক ছুটি').reduce((a,x)=>a+(Number(x.lateMinutes)||0),0);
+    const overtimeHours=rec.filter(x=>x.status==='উপস্থিত'||x.status==='সাপ্তাহিক ছুটি').reduce((a,x)=>a+(Number(x.overtimeHours)||0),0);
     const attendanceSalary=daily*present;
     const lateDeduction=hourly*(lateMinutes/60);
     const overtimePay=hourly*overtimeHours;
     const net=Math.max(0,attendanceSalary-lateDeduction+overtimePay);
-    return {basic,present,absent,leave,unmarked,lateMinutes,overtimeHours,attendanceSalary,lateDeduction,overtimePay,net};
+    return {basic,present,weeklyHoliday,absent,leave,unmarked,lateMinutes,overtimeHours,attendanceSalary,lateDeduction,overtimePay,net};
   };
   const rows=people.map(person=>{
     const c=calc(person);
@@ -164,11 +165,11 @@ function payrollPage(el){
     return '<tr><td><b>'+esc(person.name)+'</b><div class="small">'+esc(person.role||'')+'</div></td><td>'+money(c.basic)+'</td><td>'+bn(c.present)+'</td><td>'+bn(c.absent)+'</td><td>'+bn(c.leave)+'</td><td>'+bn(c.lateMinutes)+' মি.</td><td>'+bn(c.overtimeHours)+' ঘ.</td><td>'+money(c.attendanceSalary)+'</td><td>'+money(c.lateDeduction)+'</td><td>'+money(c.overtimePay)+'</td><td><b>'+money(c.net)+'</b></td><td>'+btn('বেসিক সেট',"openBasicSalary('"+safe+"')",'secondary')+'</td></tr>';
   }).join('');
   const total=people.reduce((sum,p)=>sum+calc(p).net,0);
-  el.innerHTML=title('বেতন','হাজিরা থেকে স্বয়ংক্রিয় মাসিক বেতন — অনুপস্থিত/ছুটিতে বেতন নেই, দেরিতে কর্তন, অভারটাইমে অতিরিক্ত', '')+
+  el.innerHTML=title('বেতন','হাজিরা থেকে স্বয়ংক্রিয় মাসিক বেতন — অনুপস্থিত/ছুটিতে বেতন নেই; সাপ্তাহিক ছুটি উপস্থিতির মতো বেতনযোগ্য, দেরিতে কর্তন, অভারটাইমে অতিরিক্ত', '')+
   '<div class="toolbar"><label>মাস <input type="month" value="'+month+'" onchange="payrollMonth=this.value;render()"></label>'+btn('🖨️ প্রিন্ট / PDF','printPayrollReport()','secondary')+btn('📊 Excel ডাউনলোড','downloadPayrollReport()','secondary')+'</div>'+
-  '<div class="notice"><b>হিসাবের নিয়ম:</b> উপস্থিত দিনের বেতন + অভারটাইম − দেরির কর্তন। প্রতি কর্মদিবসে ৮ ঘণ্টা ধরে ঘণ্টাপ্রতি হার = মাসিক বেসিক ÷ মাসের দিন ÷ ৮। অনুপস্থিত ও ছুটির দিনের বেতন ০। দেরির কর্তন ও অভারটাইম Payroll-এ স্বয়ংক্রিয়।</div>'+
+  '<div class="notice"><b>হিসাবের নিয়ম:</b> উপস্থিত দিনের বেতন + অভারটাইম − দেরির কর্তন। প্রতি কর্মদিবসে ৮ ঘণ্টা ধরে ঘণ্টাপ্রতি হার = মাসিক বেসিক ÷ মাসের দিন ÷ ৮। অনুপস্থিত ও সাধারণ ছুটির দিনের বেতন ০; সাপ্তাহিক ছুটি উপস্থিতির মতো গণনা হবে। দেরির কর্তন ও অভারটাইম Payroll-এ স্বয়ংক্রিয়।</div>'+
   '<div class="cards"><div class="card"><div class="metric">মোট কর্মী</div><div class="value">'+bn(people.length)+'</div></div><div class="card"><div class="metric">স্বয়ংক্রিয় মোট বেতন</div><div class="value">'+money(total)+'</div></div></div>'+
-  table(['কর্মকর্তা / কর্মচারী','বেসিক','উপস্থিত','অনুপস্থিত','ছুটি','দেরি','অভারটাইম','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য','কাজ'],rows,'কোনো কর্মকর্তা/কর্মচারী নেই')+
+  table(['কর্মকর্তা / কর্মচারী','বেসিক','উপস্থিত','সাপ্তাহিক ছুটি','অনুপস্থিত','ছুটি','দেরি','অভারটাইম','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য','কাজ'],rows,'কোনো কর্মকর্তা/কর্মচারী নেই')+
   '<div class="small" style="margin-top:10px">বর্তমানে অভারটাইম ১× ঘণ্টাপ্রতি বেসিক হারে এবং দেরি একই ঘণ্টাপ্রতি হারে কর্তন হচ্ছে। প্রয়োজন হলে পরে আলাদা OT multiplier/দেরির grace time সেটিং যোগ করা যাবে।</div>';
 }
 function financePage(el){
@@ -402,15 +403,15 @@ function payrollReportData(month){
   const [yy,mm]=month.split('-').map(Number),days=new Date(yy,mm,0).getDate(),employeeRows=(db.employees||[]).filter(e=>e&&e.name);
   const loginRows=(db.users||[]).filter(n=>db.access[n]?.approved&&!employeeRows.some(e=>e.name===n)).map(n=>({name:n,basicSalary:Number(db.access[n]?.basicSalary)||0,role:db.access[n]?.role||''}));
   const people=[...employeeRows.map(e=>({name:e.name,basicSalary:Number(e.basicSalary)||0,role:e.role||''})),...loginRows];
-  return people.map(p=>{const rec=(db.attendance||[]).filter(x=>x.person===p.name&&String(x.date||'').slice(0,7)===month),basic=Number(p.basicSalary)||0,daily=basic/days,hourly=daily/8,present=rec.filter(x=>x.status==='উপস্থিত').length,absent=rec.filter(x=>x.status==='অনুপস্থিত').length,leave=rec.filter(x=>x.status==='ছুটি').length,late=rec.reduce((a,x)=>a+(Number(x.lateMinutes)||0),0),ot=rec.reduce((a,x)=>a+(Number(x.overtimeHours)||0),0),attendanceSalary=daily*present,lateDeduction=hourly*(late/60),otPay=hourly*ot,net=Math.max(0,attendanceSalary-lateDeduction+otPay);return [p.name,p.role||'',basic,present,absent,leave,late,ot,attendanceSalary,lateDeduction,otPay,net];});
+  return people.map(p=>{const rec=(db.attendance||[]).filter(x=>x.person===p.name&&String(x.date||'').slice(0,7)===month),basic=Number(p.basicSalary)||0,daily=basic/days,hourly=daily/8,present=rec.filter(x=>x.status==='উপস্থিত').length,absent=rec.filter(x=>x.status==='অনুপস্থিত').length,leave=rec.filter(x=>x.status==='ছুটি').length,late=rec.reduce((a,x)=>a+(Number(x.lateMinutes)||0),0),ot=rec.reduce((a,x)=>a+(Number(x.overtimeHours)||0),0),attendanceSalary=daily*present,lateDeduction=hourly*(late/60),otPay=hourly*ot,net=Math.max(0,attendanceSalary-lateDeduction+otPay);return [p.name,p.role||'',basic,present,weeklyHoliday,absent,leave,late,ot,attendanceSalary,lateDeduction,otPay,net];});
 }
 function downloadPayrollReport(){
   const month=window.payrollMonth||date().slice(0,7),rows=payrollReportData(month);
-  exportRowsAsExcel('beton-list-'+month+'.xls','উত্তরা সুজ — বেতন তালিকা ('+month+')',['কর্মকর্তা / কর্মচারী','পদবি','বেসিক','উপস্থিত','অনুপস্থিত','ছুটি','দেরি (মিনিট)','অভারটাইম (ঘণ্টা)','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য'],rows);
+  exportRowsAsExcel('beton-list-'+month+'.xls','উত্তরা সুজ — বেতন তালিকা ('+month+')',['কর্মকর্তা / কর্মচারী','পদবি','বেসিক','উপস্থিত','সাপ্তাহিক ছুটি','অনুপস্থিত','ছুটি','দেরি (মিনিট)','অভারটাইম (ঘণ্টা)','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য'],rows);
 }
 function printPayrollReport(){
   const month=window.payrollMonth||date().slice(0,7),rows=payrollReportData(month);
-  printReportWindow('উত্তরা সুজ — বেতন তালিকা',['কর্মকর্তা / কর্মচারী','পদবি','বেসিক','উপস্থিত','অনুপস্থিত','ছুটি','দেরি (মিনিট)','অভারটাইম (ঘণ্টা)','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য'],rows,month+' · প্রিন্ট / PDF');
+  printReportWindow('উত্তরা সুজ — বেতন তালিকা',['কর্মকর্তা / কর্মচারী','পদবি','বেসিক','উপস্থিত','সাপ্তাহিক ছুটি','অনুপস্থিত','ছুটি','দেরি (মিনিট)','অভারটাইম (ঘণ্টা)','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য'],rows,month+' · প্রিন্ট / PDF');
 }
 function attendancePage(el){
   const employeeNames=(db.employees||[]).map(e=>e.name).filter(Boolean);
