@@ -425,7 +425,7 @@ function attendancePage(el){
     const late=Number(rec.lateMinutes)||0;
     const overtime=Number(rec.overtimeHours)||0;
     const statusHtml=editable
-      ? '<select class="att-status" data-person="'+esc(n)+'"><option value="">নির্ধারণ হয়নি</option><option value="উপস্থিত" '+(status==='উপস্থিত'?'selected':'')+'>উপস্থিত</option><option value="অনুপস্থিত" '+(status==='অনুপস্থিত'?'selected':'')+'>অনুপস্থিত</option><option value="ছুটি" '+(status==='ছুটি'?'selected':'')+'>ছুটি</option></select>'
+      ? '<select class="att-status" data-person="'+esc(n)+'"><option value="">নির্ধারণ হয়নি</option><option value="উপস্থিত" '+(status==='উপস্থিত'?'selected':'')+'>উপস্থিত</option><option value="অনুপস্থিত" '+(status==='অনুপস্থিত'?'selected':'')+'>অনুপস্থিত</option><option value="ছুটি" '+(status==='ছুটি'?'selected':'')+'>ছুটি</option><option value="সাপ্তাহিক ছুটি" '+(status==='সাপ্তাহিক ছুটি'?'selected':'')+'>সাপ্তাহিক ছুটি</option></select>'
       : '<span class="badge">'+esc(status||'নির্ধারণ হয়নি')+'</span>';
     const timeHtml=editable
       ? '<input class="att-late" data-person="'+esc(n)+'" type="number" min="0" step="1" value="'+late+'" style="width:90px" placeholder="মিনিট"><input class="att-ot" data-person="'+esc(n)+'" type="number" min="0" step="0.5" value="'+overtime+'" style="width:90px" placeholder="ঘণ্টা">'
