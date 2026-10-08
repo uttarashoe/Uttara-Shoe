@@ -501,6 +501,80 @@ const enterApp = async authUser => {
       table(['তারিখ/সময়','চালান / ডিলার','টাকার পরিমাণ','মাধ্যম','জমা হয়েছে কোথায়','Entry / গ্রহণকারী','MD অবস্থা','অনুমোদনকারী','রেফারেন্স / নোট'],tableRows,'কোনো জমার হিসাব পাওয়া যায়নি');
   };
 
+  window.cashExpensePage = async function(el) {
+    if (!memberIsManager()) {
+      el.innerHTML = title('অনুমতি প্রয়োজন','জমা টাকা থেকে খরচ ও অনুমোদন শুধু ব্যবস্থাপনা পরিচালক নিয়ন্ত্রণ করবেন।');
+      return;
+    }
+    el.innerHTML = title('জমা টাকা থেকে খরচ','ক্রয়, বেতন ও অন্যান্য খরচ আগে Pending থাকবে; MD Approve করলে তবেই জমা টাকা থেকে কমবে.',
+      '<button class="btn" onclick="openCashExpenseForm()">＋ নতুন খরচ Entry</button>') +
+      '<div id="cashExpenseBox" class="notice">হিসাব আনা হচ্ছে…</div>';
+    try {
+      const [{data:pending,error:pErr},{data:balance,error:bErr}] = await Promise.all([
+        client.rpc('uttara_list_pending_cash_expenses'),
+        client.rpc('uttara_cash_balance')
+      ]);
+      if(pErr) throw pErr;
+      if(bErr) throw bErr;
+      const rows=(pending||[]).map(x=>'<tr>'+
+        '<td>'+new Date(x.created_at).toLocaleString('bn-BD')+'</td>'+
+        '<td>'+esc(x.expense_type==='purchase'?'ক্রয়':x.expense_type==='salary'?'বেতন':'অন্যান্য')+'</td>'+
+        '<td>'+esc(x.title||'—')+'</td><td><b>'+money(x.amount)+'</b></td>'+
+        '<td>'+esc(x.method||'—')+'</td><td>'+esc(x.requested_by_name||'—')+'</td>'+
+        '<td><button class="btn" onclick="reviewCashExpense(\''+x.id+'\',\'approved\')">Approve</button> <button class="btn secondary" onclick="reviewCashExpense(\''+x.id+'\',\'rejected\')">Reject</button></td></tr>').join('');
+      el.querySelector('#cashExpenseBox').outerHTML =
+        '<div class="cards"><div class="card"><div class="metric">বর্তমান জমা টাকা</div><div class="value">'+money(balance||0)+'</div><div class="small">শুধু MD-approved জমা − approved খরচ</div></div>'+
+        '<div class="card"><div class="metric">Pending খরচ</div><div class="value">'+money((pending||[]).reduce((a,x)=>a+Number(x.amount||0),0))+'</div></div></div>'+
+        table(['তারিখ','ধরন','খরচের বিবরণ','পরিমাণ','মাধ্যম','Entry করেছে','MD অনুমোদন'],rows,'কোনো Pending খরচ নেই');
+    } catch(error) {
+      el.querySelector('#cashExpenseBox').innerHTML='<span class="danger">'+esc(normalizeError(error))+'</span>';
+    }
+  };
+
+  window.openCashExpenseForm = function() {
+    if (!memberIsManager() && !member?.active) return toast('সক্রিয় ব্যবহারকারী প্রয়োজন');
+    modal('জমা টাকা থেকে খরচ Entry', '<div class="formgrid">'+
+      '<label>খরচের ধরন<select id="cashExpenseType"><option value="purchase">ক্রয়</option><option value="salary">বেতন</option><option value="other">অন্যান্য</option></select></label>'+
+      '<label>পরিমাণ<input id="cashExpenseAmount" type="number" min="0.01" step="0.01" required></label>'+
+      '<label class="wide">খরচের বিবরণ<input id="cashExpenseTitle" required placeholder="যেমন: কাঁচামাল ক্রয় / জানুয়ারি বেতন / বিদ্যুৎ বিল"></label>'+
+      '<label>পরিশোধের মাধ্যম<select id="cashExpenseMethod">'+paymentMethodOptions()+'</select></label>'+
+      '<label>জমা হয়েছে কোথায় / কোন হিসাব<input id="cashExpenseDestination" placeholder="ক্যাশ / ব্যাংক / বিকাশ"></label>'+
+      '<label>রেফারেন্স<input id="cashExpenseReference" placeholder="চেক/Txn নম্বর (ঐচ্ছিক)"></label>'+
+      '<label class="wide">বিস্তারিত / নোট<textarea id="cashExpenseDetails" rows="3"></textarea></label>'+
+      '</div>',
+      'submitCashExpense()');
+  };
+
+  window.submitCashExpense = async function() {
+    const amount=Number(val('cashExpenseAmount')||0);
+    if(amount<=0) return toast('সঠিক খরচের পরিমাণ দিন');
+    try {
+      const {error}=await client.rpc('uttara_submit_cash_expense',{
+        p_expense_type:val('cashExpenseType'),p_title:val('cashExpenseTitle'),
+        p_amount:amount,p_method:val('cashExpenseMethod'),
+        p_destination:val('cashExpenseDestination'),p_reference:val('cashExpenseReference'),
+        p_details:{note:val('cashExpenseDetails')}
+      });
+      if(error) throw error;
+      closeModal();
+      toast('খরচ Entry হয়েছে। MD Approve না করা পর্যন্ত জমা টাকা কমবে না।');
+      await refreshSharedData(true);
+    } catch(error) { showError(normalizeError(error)); }
+  };
+
+  window.reviewCashExpense = async function(id,decision) {
+    if(!memberIsManager()) return toast('শুধু ব্যবস্থাপনা পরিচালক খরচ অনুমোদন করতে পারবেন');
+    let note='';
+    if(decision==='rejected') note=prompt('Reject করার কারণ (ঐচ্ছিক):')||'';
+    try {
+      await window.uttaraRequireMdApproval('খরচ '+(decision==='approved'?'Approve':'Reject'));
+      const {error}=await client.rpc('uttara_review_cash_expense',{p_expense_id:id,p_decision:decision,p_note:note});
+      if(error) throw error;
+      toast(decision==='approved'?'খরচ Approve হয়েছে এবং জমা টাকা থেকে কমেছে':'খরচ Reject হয়েছে; জমা টাকা থেকে কমেনি');
+      await refreshSharedData(true);
+    } catch(error) { showError(normalizeError(error)); }
+  };
+
   window.reviewPendingPayment = async function(paymentId, decision) {
     if (!memberIsManager()) return toast('শুধু ব্যবস্থাপনা পরিচালক পেমেন্ট অনুমোদন করতে পারবেন');
     const action = decision === 'approved' ? 'Approve' : 'Reject';
