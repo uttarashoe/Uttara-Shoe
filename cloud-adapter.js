@@ -229,6 +229,34 @@
     buildAuth('আবেদন জমা হয়েছে। পরিচালক অনুমোদন দেওয়ার পর নির্বাচিত লগইন ধরনের মাধ্যমে প্রবেশ করতে পারবেন।');
   };
 
+const ensurePaymentLedgerMenu = () => {
+    try {
+      const nav = document.querySelector('#nav');
+      if (!nav || !memberIsManager()) return;
+      const existing = nav.querySelector('[data-page="paymentLedger"]');
+      if (existing) {
+        existing.style.display = '';
+        return;
+      }
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.page = 'paymentLedger';
+      button.textContent = '▤  জমা টাকার হিসাব';
+      button.addEventListener('click', () => {
+        if (typeof setPage === 'function') setPage('paymentLedger');
+        else {
+          window.page = 'paymentLedger';
+          if (typeof window.render === 'function') window.render();
+        }
+      });
+      const approval = nav.querySelector('[data-page="paymentApprovals"]');
+      if (approval && approval.parentNode === nav) approval.insertAdjacentElement('afterend', button);
+      else nav.appendChild(button);
+    } catch (error) {
+      console.warn('Payment Ledger menu setup:', error);
+    }
+  };
+
 const enterApp = async authUser => {
     if (refreshing) return;
     refreshing = true;
