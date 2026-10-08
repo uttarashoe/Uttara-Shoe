@@ -395,16 +395,61 @@ const enterApp = async authUser => {
     });
     if (error) return showError(normalizeError(error));
     closeModal();
-    const refreshError = await refreshSharedData(false).then(() => null).catch(problem => problem);
-    if (refreshError && cloudActive) {
-      const index = db.sales.findIndex(item => String(item.id) === String(saleId));
-      if (index >= 0) db.sales[index] = data;
-      if (baseline) baseline.sales = clone(db.sales);
-    }
-    logActivity('পেমেন্ট গ্রহণ', `${data.no} · ${money(amount)} · ${method}`);
+    await refreshSharedData(false).catch(() => {});
+    logActivity('পেমেন্ট গ্রহণের আবেদন', `${localSale.no} · ${money(amount)} · ${method}`);
     save();
-    toast('পেমেন্ট নথিভুক্ত হয়েছে');
+    toast('পেমেন্ট গ্রহণের Entry হয়েছে — MD অনুমোদনের অপেক্ষায়');
   };
+
+  window.pendingPaymentsPage = async function(el) {
+    if (!memberIsManager()) {
+      el.innerHTML = title('অনুমতি প্রয়োজন','Pending Payment অনুমোদন শুধু ব্যবস্থাপনা পরিচালক করতে পারবেন।');
+      return;
+    }
+    el.innerHTML = title('পেমেন্ট অনুমোদন','ডিলার/গ্রাহকের Entry করা পেমেন্ট Approve বা Reject করুন।') +
+      '<div id="pendingPaymentsBox" class="notice">পেমেন্টের তালিকা আনা হচ্ছে…</div>';
+    const { data, error } = await client.rpc('uttara_list_pending_payments');
+    if (error) {
+      el.querySelector('#pendingPaymentsBox').innerHTML = '<span class="danger">'+esc(normalizeError(error))+'</span>';
+      return;
+    }
+    const rows = (data || []).map(p => `<tr>
+      <td><b>${esc(p.sale_no || p.sale_id)}</b><div class="small">${esc(p.customer || '')}</div></td>
+      <td>${money(p.amount)}</td>
+      <td>${esc(p.method || '')}</td>
+      <td>${esc(p.reference || '—')}</td>
+      <td>${esc(p.received_by_name || '—')}<div class="small">${p.created_at ? new Date(p.created_at).toLocaleString('bn-BD') : ''}</div></td>
+      <td>
+        <button class="btn" onclick="reviewPendingPayment('${p.id}','approved')">Approve</button>
+        <button class="btn secondary" onclick="reviewPendingPayment('${p.id}','rejected')">Reject</button>
+      </td>
+    </tr>`).join('');
+    el.querySelector('#pendingPaymentsBox').outerHTML = table(
+      ['চালান / ডিলার','পেমেন্ট','মাধ্যম','রেফারেন্স','Entry করেছে','কাজ'],
+      rows,
+      'কোনো Pending Payment নেই'
+    );
+  };
+
+  window.reviewPendingPayment = async function(paymentId, decision) {
+    if (!memberIsManager()) return toast('শুধু ব্যবস্থাপনা পরিচালক পেমেন্ট অনুমোদন করতে পারবেন');
+    const action = decision === 'approved' ? 'Approve' : 'Reject';
+    if (!confirm(`এই পেমেন্টটি ${action} করবেন?`)) return;
+    let note = '';
+    if (decision === 'rejected') note = prompt('Reject করার কারণ (ঐচ্ছিক):') || '';
+    try {
+      await window.uttaraRequireMdApproval('পেমেন্ট '+action);
+      const { error } = await client.rpc('uttara_review_payment', {
+        p_payment_id: paymentId, p_decision: decision, p_note: note
+      });
+      if (error) throw error;
+      await refreshSharedData(true);
+      toast(decision === 'approved' ? 'পেমেন্ট Approve হয়েছে এবং হিসাব স্বয়ংক্রিয়ভাবে আপডেট হয়েছে' : 'পেমেন্ট Reject হয়েছে');
+    } catch (error) {
+      showError(normalizeError(error));
+    }
+  };
+
   const originalReceivePayment = window.receivePayment;
   window.receivePayment = function (saleId) {
     const meta = metadata.get(key('sales', saleId));
