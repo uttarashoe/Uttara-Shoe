@@ -237,11 +237,10 @@ window.saveSalaryPayment=async function(){
   const person=val('salaryPerson'),amount=num('salaryAmount'),d=val('salaryDate')||date(),method=val('salaryMethod'),note=val('salaryNote')||'';
   if(!person||amount<=0)return toast('কর্মীর নাম ও বেতনের পরিমাণ দিন');
   try{
-    await window.uttaraRequireMdApproval('বেতন Entry');
-    const {error}=await window.uttaraSupabase.rpc('uttara_submit_cash_expense',{p_expense_type:'salary',p_title:person+' · '+d,p_amount:amount,p_method:method,p_destination:'',p_reference:'',p_details:{employee:person,date:d,note,kind:'salary'}});
+    const {error}=await window.uttaraSupabase.rpc('uttara_submit_cash_expense',{p_expense_type:'salary',p_title:person+' · '+d,p_amount:amount,p_method:method,p_destination:'',p_reference:'',p_details:{employee:person,date:d,note,kind:'salary',local_record_id:salaryId}});
     if(error)throw error;
     db.employeePayments=db.employeePayments||[];
-    db.employeePayments.push({id:id(),employee:person,person,amount,date:d,method,note,paidBy:user(),approvalStatus:'pending'});
+    const salaryId=id(); db.employeePayments.push({id:salaryId,employee:person,person,amount,date:d,method,note,paidBy:user(),approvalStatus:'pending'});
     logActivity('বেতন Pending','MD অনুমোদনের অপেক্ষায় · '+person+' · '+money(amount));
     closeModal();save();toast('বেতন Entry হয়েছে। MD Approve না করা পর্যন্ত জমা টাকা কমবে না');
   }catch(e){toast(e?.message||String(e))}
@@ -261,11 +260,10 @@ window.saveOtherExpense=async function(){
   const type=val('expenseType'),amount=num('expenseAmount'),d=val('expenseDate')||date(),method=val('expenseMethod'),note=val('expenseNote')||'';
   if(amount<=0)return toast('খরচের পরিমাণ দিন');
   try{
-    await window.uttaraRequireMdApproval('অন্যান্য খরচ Entry');
-    const {error}=await window.uttaraSupabase.rpc('uttara_submit_cash_expense',{p_expense_type:'other',p_title:type+' · '+d,p_amount:amount,p_method:method,p_destination:'',p_reference:'',p_details:{type,date:d,note,kind:'other'}});
+    const {error}=await window.uttaraSupabase.rpc('uttara_submit_cash_expense',{p_expense_type:'other',p_title:type+' · '+d,p_amount:amount,p_method:method,p_destination:'',p_reference:'',p_details:{type,date:d,note,kind:'other',local_record_id:expenseId}});
     if(error)throw error;
     db.expenses=db.expenses||[];
-    db.expenses.push({id:id(),type,category:type,amount,total:amount,date:d,method,note,paidBy:user(),approvalStatus:'pending'});
+    const expenseId=id(); db.expenses.push({id:expenseId,type,category:type,amount,total:amount,date:d,method,note,paidBy:user(),approvalStatus:'pending'});
     logActivity('অন্যান্য খরচ Pending',type+' · '+money(amount));
     closeModal();save();toast('খরচ Entry হয়েছে। MD Approve না করা পর্যন্ত জমা টাকা কমবে না');
   }catch(e){toast(e?.message||String(e))}
