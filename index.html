@@ -117,7 +117,9 @@ function productsPage(el){el.innerHTML=title('তৈরি পণ্য','মড
 function salesPage(el){let kinds=['সব','ডিলার','পাইকার','খুচরা বিক্রয়'];let filtered=db.sales.filter(s=>salesFilter==='সব'||s.kind===salesFilter).slice().reverse();let rows=filtered.map(s=>`<tr><td><b>${esc(s.no)}</b></td><td>${fmtDate(s.date)}</td><td>${esc(s.customer)}</td><td><span class="badge">${esc(s.kind)}</span></td><td>${money(s.total)}</td><td>${s.profit==null?'খরচ নেই':money(s.profit)}</td><td>${money(s.paid)}</td><td>${esc(paymentMethods(s.payments,s.paymentMethod))}</td><td>${money(s.due)}</td><td><button class="btn secondary" onclick="printSale('${s.id}')">বিক্রয় ভাউচার</button>${s.due?` <button class="btn secondary" onclick="receivePayment('${s.id}')">জমা</button>`:''}${isManager()?` <button class="btn secondary" onclick="deleteSale('${s.id}')">বিয়োজন</button>`:''}</td></tr>`).join('');el.innerHTML=title('বিক্রি ও চালান','ডিলার, পাইকার ও খুচরা বিক্রয় এবং প্রতি চালানের মুনাফা',btn('＋ নতুন বিক্রি','openSale()'))+`<div class="subnav">${kinds.map(k=>`<button class="${salesFilter===k?'active':''}" onclick="salesFilter='${k}';render()">${k}</button>`).join('')}</div>`+table(['চালান','তারিখ','ক্রেতা','বিক্রির ধরন','বিক্রয়','মুনাফা','জমা','জমার মাধ্যম','বাকি','কাজ'],rows,'এখনও কোনো বিক্রি নথিভুক্ত হয়নি')}function openBasicSalary(person){
   if(!isManager())return;
   const a=db.access[person]||{};
-  modal('মাসিক মূল বেতন / বেসিক',\`<div class="formgrid"><label>কর্মকর্তা / কর্মচারী<input value="\${esc(person)}" disabled></label><label>মাসিক মূল বেতন / বেসিক<input id="editBasicSalary" type="number" min="0" step="0.01" value="\${Number(a.basicSalary)||0}" required></label></div>\`,'saveBasicSalary(\''+esc(person).replace(/'/g,"\\\\'")+'\')');
+  const html='<div class="formgrid"><label>কর্মকর্তা / কর্মচারী<input value="'+esc(person)+'" disabled></label><label>মাসিক মূল বেতন / বেসিক<input id="editBasicSalary" type="number" min="0" step="0.01" value="'+(Number(a.basicSalary)||0)+'" required></label></div>';
+  const safe=String(person).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  modal('মাসিক মূল বেতন / বেসিক',html,"saveBasicSalary('"+safe+"')");
 }
 function saveBasicSalary(person){
   if(!isManager())return;
@@ -127,12 +129,12 @@ function saveBasicSalary(person){
   db.access[person]=db.access[person]||{approved:true,manager:false,permissions:[]};
   db.access[person].basicSalary=amount;
   logActivity('মাসিক বেসিক নির্ধারণ',person+' · '+money(amount));
-  closeModal();save();toast('মাসিক বেসিক সংরক্ষিত হয়েছে');
+  closeModal();save();toast('মাসিক বেসিক সংরক্ষণ হয়েছে');
 }
 function payrollPage(el){
-  if(!isManager()){el.innerHTML=title('অনুমতি প্রয়োজন','বেতন হিসাব শুধু ব্যবস্থাপনা পরিচালকের জন্য。');return}
+  if(!isManager()){el.innerHTML=title('অনুমতি প্রয়োজন','বেতন হিসাব শুধু ব্যবস্থাপনা পরিচালকের জন্য।');return}
   const month=(window.payrollMonth||date().slice(0,7));
-  const [yy,mm]=month.split('-').map(Number);
+  const parts=month.split('-').map(Number), yy=parts[0], mm=parts[1];
   const days=new Date(yy,mm,0).getDate();
   const people=db.users.filter(n=>db.access[n]?.approved);
   const rows=people.map(person=>{
@@ -143,7 +145,8 @@ function payrollPage(el){
     const leave=rec.filter(x=>x.status==='ছুটি').length;
     const unmarked=Math.max(0,days-rec.length);
     const salary=basic*present/days;
-    return \`<tr><td><b>\${esc(person)}</b><div class="small">\${esc(a.role||'')}</div></td><td>\${money(basic)}</td><td>\${bn(days)}</td><td>\${bn(present)}</td><td>\${bn(absent)}</td><td>\${bn(leave)}</td><td>\${bn(unmarked)}</td><td><b>\${money(salary)}</b></td><td>\${btn('বেসিক সেট','openBasicSalary(\\''+esc(person).replace(/'/g,"\\\\'")+'\\')','secondary')}</td></tr>\`;
+    const safe=String(person).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return '<tr><td><b>'+esc(person)+'</b><div class="small">'+esc(a.role||'')+'</div></td><td>'+money(basic)+'</td><td>'+bn(days)+'</td><td>'+bn(present)+'</td><td>'+bn(absent)+'</td><td>'+bn(leave)+'</td><td>'+bn(unmarked)+'</td><td><b>'+money(salary)+'</b></td><td>'+btn('বেসিক সেট',"openBasicSalary('"+safe+"')",'secondary')+'</td></tr>';
   }).join('');
   const total=people.reduce((sum,person)=>{
     const basic=Number(db.access[person]?.basicSalary)||0;
@@ -151,11 +154,11 @@ function payrollPage(el){
     return sum+basic*present/days;
   },0);
   el.innerHTML=title('বেতন','হাজিরা থেকে স্বয়ংক্রিয় মাসিক বেতন হিসাব','')+
-  \`<div class="toolbar"><label>মাস <input type="month" value="\${month}" onchange="payrollMonth=this.value;render()"></label></div>
-  <div class="notice">নিয়ম: মাসিক বেসিক ÷ মাসের মোট দিন × উপস্থিত দিন। <b>অনুপস্থিত ও ছুটির দিনে কোনো বেতন ধরা হবে না।</b> যেদিন হাজিরা দেওয়া হয়নি, সেটিও বেতন হিসেবে ধরা হবে না।</div>
-  <div class="cards"><div class="card"><div class="metric">মাসের মোট দিন</div><div class="value">\${bn(days)}</div></div><div class="card"><div class="metric">স্বয়ংক্রিয় বেতন</div><div class="value">\${money(total)}</div></div></div>
-  \${table(['কর্মকর্তা / কর্মচারী','মাসিক বেসিক','মোট দিন','উপস্থিত','অনুপস্থিত','ছুটি','হাজিরা নেই','প্রাপ্য বেতন','কাজ'],rows,'কোনো অনুমোদিত কর্মকর্তা/কর্মচারী নেই')}
-  <div class="small" style="margin-top:10px">প্রথমে প্রত্যেক কর্মীর মাসিক বেসিক নির্ধারণ করুন। তারপর হাজিরায় উপস্থিত/অনুপস্থিত/ছুটি দিলে এই হিসাব স্বয়ংক্রিয়ভাবে বদলাবে।</div>\`;
+  '<div class="toolbar"><label>মাস <input type="month" value="'+month+'" onchange="payrollMonth=this.value;render()"></label></div>'+
+  '<div class="notice">নিয়ম: মাসিক বেসিক ÷ মাসের মোট দিন × উপস্থিত দিন। <b>অনুপস্থিত ও ছুটির দিনে কোনো বেতন ধরা হবে না।</b> যেদিন হাজিরা দেওয়া হয়নি, সেটিও বেতন হিসেবে ধরা হবে না।</div>'+
+  '<div class="cards"><div class="card"><div class="metric">মাসের মোট দিন</div><div class="value">'+bn(days)+'</div></div><div class="card"><div class="metric">স্বয়ংক্রিয় বেতন</div><div class="value">'+money(total)+'</div></div></div>'+
+  table(['কর্মকর্তা / কর্মচারী','মাসিক বেসিক','মোট দিন','উপস্থিত','অনুপস্থিত','ছুটি','হাজিরা নেই','প্রাপ্য বেতন','কাজ'],rows,'কোনো অনুমোদিত কর্মকর্তা/কর্মচারী নেই')+
+  '<div class="small" style="margin-top:10px">প্রথমে প্রত্যেক কর্মীর মাসিক বেসিক নির্ধারণ করুন। তারপর হাজিরায় উপস্থিত/অনুপস্থিত/ছুটি দিলে এই হিসাব স্বয়ংক্রিয়ভাবে বদলাবে।</div>';
 }
 function financePage(el){
   if(!isManager()){el.innerHTML=title('অনুমতি প্রয়োজন','এই হিসাব শুধু ব্যবস্থাপনা পরিচালকের জন্য।');return}
