@@ -251,6 +251,7 @@ const enterApp = async authUser => {
       cloudActive = true;
       document.querySelector('#modalroot').innerHTML = '';
       setHeader();
+      ensurePaymentLedgerMenu();
       if (typeof window.render === 'function') window.render();
     } finally { refreshing = false; }
   };
