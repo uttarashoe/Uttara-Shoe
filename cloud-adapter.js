@@ -391,7 +391,7 @@ const enterApp = async authUser => {
     if (!localSale || (!memberIsManager() && saleMeta?.ownerId !== signedUser.id)) return showError('অন্য সদস্যের বিক্রিতে জমা নথিভুক্ত করার অনুমতি নেই।');
     const method = val('receiveMethod');
     const { data, error } = await client.rpc('uttara_receive_sale_payment', {
-      p_sale_id:String(saleId), p_amount:amount, p_method:method, p_reference:val('receiveRef') || ''
+      p_sale_id:String(saleId), p_amount:amount, p_method:method, p_reference:val('receiveRef') || '', p_destination:val('receiveDestination') || ''
     });
     if (error) return showError(normalizeError(error));
     closeModal();
@@ -428,6 +428,48 @@ const enterApp = async authUser => {
       rows,
       'কোনো Pending Payment নেই'
     );
+  };
+
+  window.paymentLedgerPage = async function(el) {
+    if (!memberIsManager()) {
+      el.innerHTML = title('অনুমতি প্রয়োজন','জমা টাকার পূর্ণ হিসাব শুধু ব্যবস্থাপনা পরিচালক দেখতে পারবেন।');
+      return;
+    }
+    el.innerHTML = title('জমা টাকার হিসাব','কোথায় জমা হয়েছে, কত টাকা, কার মাধ্যমে Entry/গ্রহণ, এবং MD অনুমোদনের পূর্ণ হিসাব।') +
+      '<div id="paymentLedgerBox" class="notice">হিসাব আনা হচ্ছে…</div>';
+    const status = window.paymentLedgerStatus || '';
+    const { data, error } = await client.rpc('uttara_list_payment_ledger', {p_status: status});
+    if (error) {
+      el.querySelector('#paymentLedgerBox').innerHTML = '<span class="danger">'+esc(normalizeError(error))+'</span>';
+      return;
+    }
+    const rows = data || [];
+    const total = rows.reduce((a,p)=>a+Number(p.amount||0),0);
+    const approved = rows.filter(p=>p.status==='approved').reduce((a,p)=>a+Number(p.amount||0),0);
+    const pending = rows.filter(p=>p.status==='pending').reduce((a,p)=>a+Number(p.amount||0),0);
+    const rejected = rows.filter(p=>p.status==='rejected').reduce((a,p)=>a+Number(p.amount||0),0);
+    const statusLabel = p => p.status==='approved' ? '<span class="badge">অনুমোদিত</span>' : p.status==='rejected' ? '<span class="badge warn">বাতিল</span>' : '<span class="badge">অপেক্ষমাণ</span>';
+    const tableRows = rows.map(p=>'<tr>'+
+      '<td>'+ (p.created_at ? new Date(p.created_at).toLocaleString('bn-BD') : '—') +'</td>'+
+      '<td><b>'+esc(p.sale_no||p.sale_id||'—')+'</b><div class="small">'+esc(p.customer||'')+'</div></td>'+
+      '<td><b>'+money(p.amount)+'</b></td>'+
+      '<td>'+esc(p.method||'—')+'</td>'+
+      '<td>'+esc(p.destination||'—')+'</td>'+
+      '<td>'+esc(p.received_by_name||'—')+'</td>'+
+      '<td>'+statusLabel(p)+'</td>'+
+      '<td>'+esc(p.reviewed_by ? (memberRows.find(m=>String(m.user_id)===String(p.reviewed_by))?.display_name||'MD') : '—')+
+        '<div class="small">'+(p.reviewed_at ? new Date(p.reviewed_at).toLocaleString('bn-BD') : '')+'</div></td>'+
+      '<td>'+esc(p.reference||'—')+'<div class="small">'+esc(p.review_note||'')+'</div></td>'+
+      '</tr>').join('');
+    el.querySelector('#paymentLedgerBox').outerHTML =
+      '<div class="cards">'+
+      '<div class="card"><div class="metric">মোট জমা Entry</div><div class="value">'+money(total)+'</div><div class="small">'+bn(rows.length)+'টি</div></div>'+
+      '<div class="card"><div class="metric">MD অনুমোদিত</div><div class="value">'+money(approved)+'</div></div>'+
+      '<div class="card"><div class="metric">অপেক্ষমাণ</div><div class="value">'+money(pending)+'</div></div>'+
+      '<div class="card"><div class="metric">বাতিল</div><div class="value">'+money(rejected)+'</div></div></div>'+
+      '<div class="toolbar"><label>স্ট্যাটাস <select onchange="paymentLedgerStatus=this.value;render()">'+
+      '<option value="" '+(!status?'selected':'')+'>সব</option><option value="pending" '+(status==='pending'?'selected':'')+'>অপেক্ষমাণ</option><option value="approved" '+(status==='approved'?'selected':'')+'>অনুমোদিত</option><option value="rejected" '+(status==='rejected'?'selected':'')+'>বাতিল</option></select></label></div>'+
+      table(['তারিখ/সময়','চালান / ডিলার','টাকার পরিমাণ','মাধ্যম','জমা হয়েছে কোথায়','Entry / গ্রহণকারী','MD অবস্থা','অনুমোদনকারী','রেফারেন্স / নোট'],tableRows,'কোনো জমার হিসাব পাওয়া যায়নি');
   };
 
   window.reviewPendingPayment = async function(paymentId, decision) {
