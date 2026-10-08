@@ -397,7 +397,6 @@ const enterApp = async authUser => {
     closeModal();
     await refreshSharedData(false).catch(() => {});
     logActivity('পেমেন্ট গ্রহণের আবেদন', `${localSale.no} · ${money(amount)} · ${method}`);
-    save();
     toast('পেমেন্ট গ্রহণের Entry হয়েছে — MD অনুমোদনের অপেক্ষায়');
   };
 
