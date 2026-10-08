@@ -78,8 +78,6 @@
   const originalSale = window.saveSale;
   wrap('saveSale', 'বিক্রয়/চালান পরিবর্তন', originalSale);
 
-  const originalPayment = window.saveReceivedPayment;
-  wrap('saveReceivedPayment', 'বিক্রয় পাওনা/পেমেন্ট পরিবর্তন', originalPayment);
 
   const originalMember = window.saveCloudMember;
   wrap('saveCloudMember', 'এসআর/স্টাফ সদস্য ও অনুমতি পরিবর্তন', originalMember);
