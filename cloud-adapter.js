@@ -510,12 +510,13 @@ const enterApp = async authUser => {
       '<button class="btn" onclick="openCashExpenseForm()">＋ নতুন খরচ Entry</button>') +
       '<div id="cashExpenseBox" class="notice">হিসাব আনা হচ্ছে…</div>';
     try {
-      const [{data:pending,error:pErr},{data:balance,error:bErr}] = await Promise.all([
+      const [{data:pendingRaw,error:pErr},{data:balance,error:bErr}] = await Promise.all([
         client.rpc('uttara_list_pending_cash_expenses'),
         client.rpc('uttara_cash_balance')
       ]);
       if(pErr) throw pErr;
       if(bErr) throw bErr;
+      const pending = Array.isArray(pendingRaw) ? pendingRaw : (Array.isArray(pendingRaw?.[0]) ? pendingRaw[0] : (pendingRaw?.[0]?.jsonb_agg || pendingRaw || []));
       const rows=(pending||[]).map(x=>'<tr>'+
         '<td>'+new Date(x.created_at).toLocaleString('bn-BD')+'</td>'+
         '<td>'+esc(x.expense_type==='purchase'?'ক্রয়':x.expense_type==='salary'?'বেতন':'অন্যান্য')+'</td>'+
