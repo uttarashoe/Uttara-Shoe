@@ -186,8 +186,8 @@ function financePage(el){
   const sales=knownSalesRows.reduce((a,s)=>a+Number(s.total||0),0);
   const cogs=saleRows.filter(s=>s.costTotal!=null).reduce((a,s)=>a+Number(s.costTotal||0),0);
   const gross=sales-cogs;
-  const salaries=(db.employeePayments||[]).reduce((a,p)=>a+amountOf(p),0);
-  const expenses=(db.expenses||[]).reduce((a,p)=>a+amountOf(p),0);
+  const salaries=(db.employeePayments||[]).filter(p=>p.approvalStatus!=='pending' && p.approvalStatus!=='rejected').reduce((a,p)=>a+amountOf(p),0);
+  const expenses=(db.expenses||[]).filter(p=>p.approvalStatus!=='pending' && p.approvalStatus!=='rejected').reduce((a,p)=>a+amountOf(p),0);
   const netProfit=gross-salaries-expenses;
   const primary=tx.filter(x=>x.type==='opening').reduce((a,x)=>a+amountOf(x),0);
   const additions=tx.filter(x=>x.type==='contribution').reduce((a,x)=>a+amountOf(x),0);
