@@ -165,7 +165,7 @@ function payrollPage(el){
   }).join('');
   const total=people.reduce((sum,p)=>sum+calc(p).net,0);
   el.innerHTML=title('বেতন','হাজিরা থেকে স্বয়ংক্রিয় মাসিক বেতন — অনুপস্থিত/ছুটিতে বেতন নেই, দেরিতে কর্তন, অভারটাইমে অতিরিক্ত', '')+
-  '<div class="toolbar"><label>মাস <input type="month" value="'+month+'" onchange="payrollMonth=this.value;render()"></label></div>'+
+  '<div class="toolbar"><label>মাস <input type="month" value="'+month+'" onchange="payrollMonth=this.value;render()"></label>'+btn('🖨️ প্রিন্ট / PDF','printPayrollReport()','secondary')+btn('📊 Excel ডাউনলোড','downloadPayrollReport()','secondary')+'</div>'+
   '<div class="notice"><b>হিসাবের নিয়ম:</b> উপস্থিত দিনের বেতন + অভারটাইম − দেরির কর্তন। প্রতি কর্মদিবসে ৮ ঘণ্টা ধরে ঘণ্টাপ্রতি হার = মাসিক বেসিক ÷ মাসের দিন ÷ ৮। অনুপস্থিত ও ছুটির দিনের বেতন ০। দেরির কর্তন ও অভারটাইম Payroll-এ স্বয়ংক্রিয়।</div>'+
   '<div class="cards"><div class="card"><div class="metric">মোট কর্মী</div><div class="value">'+bn(people.length)+'</div></div><div class="card"><div class="metric">স্বয়ংক্রিয় মোট বেতন</div><div class="value">'+money(total)+'</div></div></div>'+
   table(['কর্মকর্তা / কর্মচারী','বেসিক','উপস্থিত','অনুপস্থিত','ছুটি','দেরি','অভারটাইম','উপস্থিতির বেতন','দেরি কর্তন','অভারটাইম','নিট প্রাপ্য','কাজ'],rows,'কোনো কর্মকর্তা/কর্মচারী নেই')+
@@ -434,7 +434,7 @@ function attendancePage(el){
       : '';
     return '<tr><td><b>'+esc(n)+'</b></td><td>'+statusHtml+'</td><td>'+timeHtml+'</td><td>'+esc(rec.by||'—')+'</td>'+action+'</tr>';
   }).join('');
-  const actions=btn('হাজিরা সংরক্ষণ','saveAttendance()')+(isManager()?btn('＋ নতুন কর্মকর্তা/কর্মচারী','openAttendanceEmployee()'):'');
+  const actions=btn('হাজিরা সংরক্ষণ','saveAttendance()')+btn('🖨️ প্রিন্ট / PDF','printAttendanceReport()','secondary')+btn('📊 Excel ডাউনলোড','downloadAttendanceReport()','secondary')+(isManager()?btn('＋ নতুন কর্মকর্তা/কর্মচারী','openAttendanceEmployee()'):'');
   el.innerHTML=title('হাজিরা','কর্মকর্তা ও কর্মচারীদের দৈনিক হাজিরা — দেরি ও অভারটাইমও সংরক্ষণ করা যাবে',actions)
     +'<div class="toolbar"><label>তারিখ <input type="date" value="'+attendanceViewDate+'" onchange="attendanceViewDate=this.value;render()"></label>'
     +(isManager()?'<span class="badge">ব্যবস্থাপনা পরিচালক: হাজিরা/ছুটি/দেরি/অভারটাইম সংযোজন ও বিয়োজন</span>':'')
