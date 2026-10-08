@@ -498,5 +498,5 @@ const enterApp = async authUser => {
   }
 
   window.showAuth = buildAuth;
-  start().catch(error => showError(normalizeError(error)));
+  start().catch(error => showError(normalizeError(error)));\n\n  const approvalScript = document.createElement('script');\n  approvalScript.src = 'md-approval-gate.js?v=20261008';\n  approvalScript.async = false;\n  document.head.appendChild(approvalScript);
 })();
