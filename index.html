@@ -144,20 +144,21 @@ function payrollPage(el){
   const calc=person=>{
     const basic=Number(person.basicSalary)||0;
     const rec=(db.attendance||[]).filter(x=>x.person===person.name&&String(x.date||'').slice(0,7)===month);
-    const present=rec.filter(x=>x.status==='উপস্থিত'||x.status==='সাপ্তাহিক ছুটি').length;
+    const present=rec.filter(x=>x.status==='উপস্থিত').length;
     const weeklyHoliday=rec.filter(x=>x.status==='সাপ্তাহিক ছুটি').length;
+    const paidDays=present+weeklyHoliday;
     const absent=rec.filter(x=>x.status==='অনুপস্থিত').length;
     const leave=rec.filter(x=>x.status==='ছুটি').length;
     const unmarked=Math.max(0,days-rec.length);
     const daily=basic/workDays;
     const hourly=daily/standardHours;
-    const lateMinutes=rec.filter(x=>x.status==='উপস্থিত'||x.status==='সাপ্তাহিক ছুটি').reduce((a,x)=>a+(Number(x.lateMinutes)||0),0);
-    const overtimeHours=rec.filter(x=>x.status==='উপস্থিত'||x.status==='সাপ্তাহিক ছুটি').reduce((a,x)=>a+(Number(x.overtimeHours)||0),0);
-    const attendanceSalary=daily*present;
+    const lateMinutes=rec.filter(x=>x.status==='উপস্থিত').reduce((a,x)=>a+(Number(x.lateMinutes)||0),0);
+    const overtimeHours=rec.filter(x=>x.status==='উপস্থিত').reduce((a,x)=>a+(Number(x.overtimeHours)||0),0);
+    const attendanceSalary=daily*paidDays;
     const lateDeduction=hourly*(lateMinutes/60);
     const overtimePay=hourly*overtimeHours;
     const net=Math.max(0,attendanceSalary-lateDeduction+overtimePay);
-    return {basic,present,weeklyHoliday,absent,leave,unmarked,lateMinutes,overtimeHours,attendanceSalary,lateDeduction,overtimePay,net};
+    return {basic,present,weeklyHoliday,paidDays,absent,leave,unmarked,lateMinutes,overtimeHours,attendanceSalary,lateDeduction,overtimePay,net};
   };
   const rows=people.map(person=>{
     const c=calc(person);
@@ -403,7 +404,7 @@ function payrollReportData(month){
   const [yy,mm]=month.split('-').map(Number),days=new Date(yy,mm,0).getDate(),employeeRows=(db.employees||[]).filter(e=>e&&e.name);
   const loginRows=(db.users||[]).filter(n=>db.access[n]?.approved&&!employeeRows.some(e=>e.name===n)).map(n=>({name:n,basicSalary:Number(db.access[n]?.basicSalary)||0,role:db.access[n]?.role||''}));
   const people=[...employeeRows.map(e=>({name:e.name,basicSalary:Number(e.basicSalary)||0,role:e.role||''})),...loginRows];
-  return people.map(p=>{const rec=(db.attendance||[]).filter(x=>x.person===p.name&&String(x.date||'').slice(0,7)===month),basic=Number(p.basicSalary)||0,daily=basic/days,hourly=daily/8,present=rec.filter(x=>x.status==='উপস্থিত').length,absent=rec.filter(x=>x.status==='অনুপস্থিত').length,leave=rec.filter(x=>x.status==='ছুটি').length,late=rec.reduce((a,x)=>a+(Number(x.lateMinutes)||0),0),ot=rec.reduce((a,x)=>a+(Number(x.overtimeHours)||0),0),attendanceSalary=daily*present,lateDeduction=hourly*(late/60),otPay=hourly*ot,net=Math.max(0,attendanceSalary-lateDeduction+otPay);return [p.name,p.role||'',basic,present,weeklyHoliday,absent,leave,late,ot,attendanceSalary,lateDeduction,otPay,net];});
+  return people.map(p=>{const rec=(db.attendance||[]).filter(x=>x.person===p.name&&String(x.date||'').slice(0,7)===month),basic=Number(p.basicSalary)||0,daily=basic/days,hourly=daily/8,present=rec.filter(x=>x.status==='উপস্থিত').length,weeklyHoliday=rec.filter(x=>x.status==='সাপ্তাহিক ছুটি').length,absent=rec.filter(x=>x.status==='অনুপস্থিত').length,leave=rec.filter(x=>x.status==='ছুটি').length,late=rec.filter(x=>x.status==='উপস্থিত').reduce((a,x)=>a+(Number(x.lateMinutes)||0),0),ot=rec.filter(x=>x.status==='উপস্থিত').reduce((a,x)=>a+(Number(x.overtimeHours)||0),0),attendanceSalary=daily*(present+weeklyHoliday),lateDeduction=hourly*(late/60),otPay=hourly*ot,net=Math.max(0,attendanceSalary-lateDeduction+otPay);return [p.name,p.role||'',basic,present,weeklyHoliday,absent,leave,late,ot,attendanceSalary,lateDeduction,otPay,net];});
 }
 function downloadPayrollReport(){
   const month=window.payrollMonth||date().slice(0,7),rows=payrollReportData(month);
