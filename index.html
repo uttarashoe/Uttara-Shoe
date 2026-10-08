@@ -136,28 +136,30 @@ function payrollPage(el){
   const month=(window.payrollMonth||date().slice(0,7));
   const parts=month.split('-').map(Number), yy=parts[0], mm=parts[1];
   const days=new Date(yy,mm,0).getDate();
-  const people=db.users.filter(n=>db.access[n]?.approved);
+  const employeeRows=(db.employees||[]).filter(e=>e&&e.name);
+  const loginRows=(db.users||[]).filter(n=>db.access[n]?.approved&&!employeeRows.some(e=>e.name===n)).map(n=>({name:n,basicSalary:Number(db.access[n]?.basicSalary)||0,role:db.access[n]?.role||''}));
+  const people=[...employeeRows.map(e=>({name:e.name,basicSalary:Number(e.basicSalary)||0,role:e.role||''})),...loginRows];
   const rows=people.map(person=>{
-    const a=db.access[person]||{}, basic=Number(a.basicSalary)||0;
-    const rec=(db.attendance||[]).filter(x=>x.person===person&&String(x.date||'').slice(0,7)===month);
+    const basic=Number(person.basicSalary)||0;
+    const rec=(db.attendance||[]).filter(x=>x.person===person.name&&String(x.date||'').slice(0,7)===month);
     const present=rec.filter(x=>x.status==='উপস্থিত').length;
     const absent=rec.filter(x=>x.status==='অনুপস্থিত').length;
     const leave=rec.filter(x=>x.status==='ছুটি').length;
     const unmarked=Math.max(0,days-rec.length);
     const salary=basic*present/days;
-    const safe=String(person).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-    return '<tr><td><b>'+esc(person)+'</b><div class="small">'+esc(a.role||'')+'</div></td><td>'+money(basic)+'</td><td>'+bn(days)+'</td><td>'+bn(present)+'</td><td>'+bn(absent)+'</td><td>'+bn(leave)+'</td><td>'+bn(unmarked)+'</td><td><b>'+money(salary)+'</b></td><td>'+btn('বেসিক সেট',"openBasicSalary('"+safe+"')",'secondary')+'</td></tr>';
+    const safe=String(person.name).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return '<tr><td><b>'+esc(person.name)+'</b><div class="small">'+esc(person.role||'')+'</div></td><td>'+money(basic)+'</td><td>'+bn(days)+'</td><td>'+bn(present)+'</td><td>'+bn(absent)+'</td><td>'+bn(leave)+'</td><td>'+bn(unmarked)+'</td><td><b>'+money(salary)+'</b></td><td>'+btn('বেসিক সেট',"openBasicSalary('"+safe+"')",'secondary')+'</td></tr>';
   }).join('');
   const total=people.reduce((sum,person)=>{
-    const basic=Number(db.access[person]?.basicSalary)||0;
-    const present=(db.attendance||[]).filter(x=>x.person===person&&x.status==='উপস্থিত'&&String(x.date||'').slice(0,7)===month).length;
+    const basic=Number(person.basicSalary)||0;
+    const present=(db.attendance||[]).filter(x=>x.person===person.name&&x.status==='উপস্থিত'&&String(x.date||'').slice(0,7)===month).length;
     return sum+basic*present/days;
   },0);
   el.innerHTML=title('বেতন','হাজিরা থেকে স্বয়ংক্রিয় মাসিক বেতন হিসাব','')+
   '<div class="toolbar"><label>মাস <input type="month" value="'+month+'" onchange="payrollMonth=this.value;render()"></label></div>'+
   '<div class="notice">নিয়ম: মাসিক বেসিক ÷ মাসের মোট দিন × উপস্থিত দিন। <b>অনুপস্থিত ও ছুটির দিনে কোনো বেতন ধরা হবে না।</b> যেদিন হাজিরা দেওয়া হয়নি, সেটিও বেতন হিসেবে ধরা হবে না।</div>'+
   '<div class="cards"><div class="card"><div class="metric">মাসের মোট দিন</div><div class="value">'+bn(days)+'</div></div><div class="card"><div class="metric">স্বয়ংক্রিয় বেতন</div><div class="value">'+money(total)+'</div></div></div>'+
-  table(['কর্মকর্তা / কর্মচারী','মাসিক বেসিক','মোট দিন','উপস্থিত','অনুপস্থিত','ছুটি','হাজিরা নেই','প্রাপ্য বেতন','কাজ'],rows,'কোনো অনুমোদিত কর্মকর্তা/কর্মচারী নেই')+
+  table(['কর্মকর্তা / কর্মচারী','মাসিক বেসিক','মোট দিন','উপস্থিত','অনুপস্থিত','ছুটি','হাজিরা নেই','প্রাপ্য বেতন','কাজ'],rows,'কোনো কর্মকর্তা/কর্মচারী নেই')+
   '<div class="small" style="margin-top:10px">প্রথমে প্রত্যেক কর্মীর মাসিক বেসিক নির্ধারণ করুন। তারপর হাজিরায় উপস্থিত/অনুপস্থিত/ছুটি দিলে এই হিসাব স্বয়ংক্রিয়ভাবে বদলাবে।</div>';
 }
 function financePage(el){
