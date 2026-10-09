@@ -1,8 +1,8 @@
 /* Uttara Shoes Supabase browser adapter. Database authorization is enforced by RLS and RPCs. */
 (() => {
   const config = window.UTTARA_SUPABASE_CONFIG;
-  const collections = ['materials','products','dealers','batches','sales','expenses','activityLogs','supplierPurchases','purchaseOrders','employees','employeePayments','attendance','staffTargets','workTasks','materialUsages','srVisits','doOrders','capitalTransactions','fixedAssets'];
-  const extraCollections = ['srVisits','doOrders'];
+  const collections = ['materials','products','dealers','batches','sales','expenses','activityLogs','supplierPurchases','purchaseOrders','employees','employeePayments','attendance','staffTargets','workTasks','materialUsages','srVisits','doOrders','capitalTransactions','fixedAssets','storeTransactions'];
+  const extraCollections = ['srVisits','doOrders','storeTransactions'];
   const key = (collection, id) => `${collection}:${String(id)}`;
   let client = null;
   let signedUser = null;
@@ -165,6 +165,7 @@
     db = next;
     metadata = newMeta;
     memberRows = profiles;
+    window.uttaraCurrentMember = member ? clone(member) : null;
     baseline = stateSnapshot();
     if (document.querySelector('#printBrandImg') && document.querySelector('.brand-mark')) {
       document.querySelector('#printBrandImg').src = document.querySelector('.brand-mark').src;
@@ -357,6 +358,21 @@ const enterApp = async authUser => {
     }
     baseline = snap;
   };
+  window.storeStockMove = async function (productId, direction, quantity, comments, phone) {
+    if (!cloudActive || !signedUser || !member) throw new Error('লগইন সেশন পাওয়া যায়নি।');
+    const allowed = memberIsManager() || (member.permissions || []).includes('storeInOut');
+    if (!allowed) throw new Error('স্টোর ইন/আউট এন্ট্রির অনুমতি পরিচালক দেননি।');
+    const { data, error } = await client.rpc('uttara_store_stock_move', {
+      p_product_id: String(productId),
+      p_direction: String(direction),
+      p_quantity: Number(quantity),
+      p_comments: String(comments || ''),
+      p_phone: String(phone || '')
+    });
+    if (error) throw error;
+    return data;
+  };
+
   window.save = function () {
     if (typeof window.render === 'function') window.render();
     if (!cloudActive) return;
