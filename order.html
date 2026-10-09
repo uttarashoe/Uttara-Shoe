@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>উত্তরা সুজ — অনলাইন অর্ডার</title>
+<style>
+:root{font-family:system-ui,"Noto Sans Bengali",sans-serif;color:#17372f;background:#edf3f0}*{box-sizing:border-box}body{margin:0}.wrap{max-width:850px;margin:24px auto;padding:14px}.hero{background:#164b40;color:white;border-radius:18px;padding:24px}.hero h1{margin:0 0 6px}.card{background:white;border-radius:16px;padding:20px;margin-top:16px;box-shadow:0 5px 24px #17372f10}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}label{display:block;font-weight:650;font-size:14px}input,select,textarea{width:100%;margin-top:6px;border:1px solid #cbdad3;border-radius:10px;padding:11px;font:inherit;background:white}textarea{min-height:70px}.item{border:1px solid #d9e4de;border-radius:12px;padding:12px;margin:10px 0}.itemtop{display:flex;justify-content:space-between;gap:10px;align-items:start}.muted{color:#6b8078;font-size:13px}.price{font-weight:800;color:#164b40}.qty{max-width:140px}.btn{border:0;border-radius:11px;padding:13px 18px;font:inherit;font-weight:750;cursor:pointer;background:#164b40;color:white;width:100%;margin-top:12px}.btn:disabled{opacity:.55;cursor:wait}.notice{display:none;border-radius:10px;padding:12px;margin-top:12px;background:#e6f4ec}.notice.err{background:#fde9e7;color:#9b2520}.total{font-size:22px;font-weight:850}.footer{font-size:12px;color:#6b8078;text-align:center;padding:18px}@media(max-width:600px){.grid{grid-template-columns:1fr}.wrap{margin:8px auto;padding:10px}.hero,.card{padding:16px}}
+</style>
+</head>
+<body><main class="wrap">
+<header class="hero"><h1>উত্তরা সুজ</h1><div>অনলাইন অর্ডার পোর্টাল</div><p class="muted" style="color:#d7e8e0">ডিলার, পাইকার ও খুচরা ব্যবসায়ীরা এখান থেকে অর্ডার পাঠাতে পারবেন। অর্ডার অনুমোদনের আগে মজুত কমবে না।</p></header>
+<section class="card"><h2>আপনার তথ্য</h2><div class="grid">
+<label>ব্যবসার ধরন<select id="type"><option>ডিলার</option><option>পাইকার</option><option>খুচরা</option></select></label>
+<label>প্রতিষ্ঠান / ক্রেতার নাম<input id="name" required maxlength="120" placeholder="প্রতিষ্ঠানের নাম"></label>
+<label>মোবাইল নম্বর<input id="phone" required maxlength="30" type="tel" placeholder="01XXXXXXXXX"></label>
+<label>ঠিকানা<input id="address" required maxlength="300" placeholder="দোকান/বাজার/জেলা"></label>
+</div></section>
+<section class="card"><h2>পণ্য নির্বাচন</h2><p class="muted">প্রতিটি পণ্যের জন্য জোড়ার পরিমাণ দিন। মূল্য ব্যবসার ধরন অনুযায়ী দেখানো হবে।</p><div id="products">পণ্য লোড হচ্ছে…</div><div class="total">মোট: <span id="total">৳ ০.০০</span></div></section>
+<section class="card"><label>অর্ডার সম্পর্কে মন্তব্য (ঐচ্ছিক)<textarea id="notes" maxlength="1000" placeholder="ডেলিভারি, সাইজ ভাগ বা অন্যান্য নির্দেশনা"></textarea></label><button id="submit" class="btn">অর্ডার জমা দিন</button><div id="notice" class="notice" role="status"></div></section>
+<div class="footer">অর্ডার পাঠানোর পর উত্তরা সুজ কর্তৃপক্ষ যাচাই করে অনুমোদন দেবেন। অর্ডার পাঠালেই বিক্রয় সম্পন্ন হয় না।</div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script>
+<script>
+const fmt=n=>'৳ '+Number(n||0).toLocaleString('bn-BD',{minimumFractionDigits:2,maximumFractionDigits:2});
+const $=id=>document.getElementById(id);let products=[];
+function price(p){const t=$('type').value;return Number(t==='ডিলার'?p.dealer_price:t==='পাইকার'?p.wholesale_price:p.retail_price)||0}
+function renderProducts(){ $('products').innerHTML=products.length?products.map(p=>'<div class="item"><div class="itemtop"><div><b>'+esc(p.model)+'</b><div class="muted">'+esc(p.color||'')+' · সাইজ: '+esc(p.sizes||'—')+'</div><div class="price">'+fmt(price(p))+' / জোড়া</div><div class="muted">বর্তমান মজুত: '+Number(p.stock).toLocaleString('bn-BD')+' জোড়া</div></div><label class="qty">পরিমাণ (জোড়া)<input type="number" min="0" step="1" max="'+Math.max(0,Number(p.stock)||0)+'" value="0" data-pid="'+esc(p.id)+'" class="qtyinput"></label></div></div>').join(''):'<div class="muted">এখন পণ্য তালিকা পাওয়া যাচ্ছে না। পরে আবার চেষ্টা করুন।</div>';document.querySelectorAll('.qtyinput').forEach(x=>x.addEventListener('input',updateTotal));updateTotal()}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function updateTotal(){let total=0;document.querySelectorAll('.qtyinput').forEach(x=>{let p=products.find(p=>p.id===x.dataset.pid);total+=(Math.max(0,Number(x.value)||0))*price(p||{})});$('total').textContent=fmt(total)}
+function notice(msg,err=false){$('notice').style.display='block';$('notice').className='notice'+(err?' err':'');$('notice').textContent=msg}
+async function load(){try{const c=window.UTTARA_SUPABASE_CONFIG;if(!c?.url||!c?.publishableKey)throw Error('সফটওয়্যারের সংযোগ সেটিংস পাওয়া যায়নি');const client=window.supabase.createClient(c.url,c.publishableKey);const {data,error}=await client.rpc('uttara_public_order_products');if(error)throw error;products=data||[];renderProducts();}catch(e){$('products').textContent='পণ্য তালিকা লোড হয়নি। অনুগ্রহ করে পরে আবার চেষ্টা করুন।';notice(e.message||'সংযোগে সমস্যা হয়েছে',true)}}
+$('type').addEventListener('change',renderProducts);
+$('submit').addEventListener('click',async()=>{const btn=$('submit');btn.disabled=true;try{const items=[...document.querySelectorAll('.qtyinput')].map(x=>({pid:x.dataset.pid,qty:Number(x.value)||0})).filter(x=>x.qty>0);if(!$('name').value.trim()||!$('phone').value.trim()||!$('address').value.trim())throw Error('নাম, মোবাইল নম্বর ও ঠিকানা পূরণ করুন');if(!items.length)throw Error('কমপক্ষে একটি পণ্যের পরিমাণ দিন');for(const i of items){const p=products.find(p=>p.id===i.pid);if(!Number.isInteger(i.qty)||i.qty<1)throw Error('জোড়ার পরিমাণ পূর্ণসংখ্যা হতে হবে');if(!p||i.qty>Number(p.stock))throw Error('একটি পণ্যের মজুতের চেয়ে বেশি পরিমাণ দেওয়া হয়েছে')}
+const c=window.UTTARA_SUPABASE_CONFIG,client=window.supabase.createClient(c.url,c.publishableKey);const {data,error}=await client.rpc('uttara_submit_customer_order',{p_customer_name:$('name').value.trim(),p_business_type:$('type').value,p_phone:$('phone').value.trim(),p_address:$('address').value.trim(),p_notes:$('notes').value.trim(),p_items:items});if(error)throw error;notice('অর্ডার জমা হয়েছে। অর্ডার নম্বর: '+data.order_no+' · মোট '+fmt(data.total)+' · অবস্থা: অনুমোদনের অপেক্ষায়।');document.querySelectorAll('.qtyinput').forEach(x=>x.value='0');$('notes').value='';updateTotal();}catch(e){notice(e.message||'অর্ডার জমা হয়নি',true)}finally{btn.disabled=false}});
+load();
+</script></body></html>
