@@ -58,7 +58,7 @@ function managerDeleteSelected(){
     const m=db.materials.find(m=>m.name===x.material);if(m)m.qty=Math.max(0,(Number(m.qty)||0)-(Number(x.qty)||0));
   }
   if(type==='materialUsages'){
-    const m=db.materials.find(m=>m.name===x.material);if(m)m.qty+=Number(x.qty)||0;
+    const m=db.materials.find(m=>m.name===x.material);if(m)m.qty+=Number(x.stockQty??x.qty)||0;
   }
   if(type==='batches' && x.stocked)return toast('প্যাকিং সম্পন্ন উৎপাদন অর্ডার আগে সমন্বয় না করে বিয়োজন করা যাবে না');
   if(type==='products' && (db.sales||[]).some(s=>(s.lines||[]).some(l=>l.pid===x.id)))return toast('এই পণ্যের বিক্রয় ইতিহাস আছে; বিয়োজন করা যাবে না');
