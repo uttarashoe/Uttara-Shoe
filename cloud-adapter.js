@@ -501,6 +501,55 @@ const enterApp = async authUser => {
       table(['তারিখ/সময়','চালান / ডিলার','টাকার পরিমাণ','মাধ্যম','জমা হয়েছে কোথায়','Entry / গ্রহণকারী','MD অবস্থা','অনুমোদনকারী','রেফারেন্স / নোট'],tableRows,'কোনো জমার হিসাব পাওয়া যায়নি');
   };
 
+
+  window.cashLedgerSpreadsheetPage = async function(el) {
+    if (!memberIsManager()) {
+      el.innerHTML = title('অনুমতি প্রয়োজন','জমা-খরচের পূর্ণ স্প্রেডশিট শুধু ব্যবস্থাপনা পরিচালক দেখতে পারবেন.');
+      return;
+    }
+    el.innerHTML = title('জমা-খরচ স্প্রেডশিট','জমা টাকার হিসাব ও খরচের হিসাব আলাদা টেবিলে দেখুন; Excel-এ খোলার উপযোগী CSV ডাউনলোড করুন.') +
+      '<div class="notice">নিরাপদ হিসাবের জন্য জমা ও খরচ আলাদা শিটে রাখা হয়েছে। খরচের RPC বর্তমানে অপেক্ষমাণ খরচ ফেরত দিলে সেই তথ্যই দেখানো হবে; অনুমোদিত/বাতিল খরচের সম্পূর্ণ ইতিহাসের জন্য ডেটাবেসে পূর্ণ expense-history RPC প্রয়োজন।</div>' +
+      '<div class="toolbar"><button class="btn" onclick="downloadCashLedgerCsv(\'deposits\')">জমার শিট Excel ডাউনলোড</button><button class="btn secondary" onclick="downloadCashLedgerCsv(\'expenses\')">খরচের শিট Excel ডাউনলোড</button><button class="btn secondary" onclick="window.print()">প্রিন্ট</button></div>' +
+      '<div id="cashLedgerSpreadsheetBox" class="notice">হিসাব আনা হচ্ছে…</div>';
+    try {
+      const [{data:depositRaw,error:dErr},{data:expenseRaw,error:eErr},{data:balance,error:bErr}] = await Promise.all([
+        client.rpc('uttara_list_payment_ledger',{p_status:''}),
+        client.rpc('uttara_list_pending_cash_expenses'),
+        client.rpc('uttara_cash_balance')
+      ]);
+      if(dErr) throw dErr; if(eErr) throw eErr; if(bErr) throw bErr;
+      const deposits=Array.isArray(depositRaw)?depositRaw:[];
+      const expenses=Array.isArray(expenseRaw)?expenseRaw:(Array.isArray(expenseRaw?.[0])?expenseRaw[0]:(expenseRaw?.[0]?.jsonb_agg||[]));
+      window._cashLedgerSpreadsheetData={deposits,expenses,balance:Number(balance||0)};
+      const depTotal=deposits.filter(x=>x.status==='approved').reduce((a,x)=>a+Number(x.amount||0),0);
+      const expPending=expenses.reduce((a,x)=>a+Number(x.amount||0),0);
+      const depRows=deposits.map(x=>'<tr><td>'+esc(x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'—')+'</td><td>'+esc(x.sale_no||x.sale_id||'—')+'</td><td>'+esc(x.customer||'—')+'</td><td>'+money(x.amount)+'</td><td>'+esc(x.method||'—')+'</td><td>'+esc(x.destination||'—')+'</td><td>'+esc(x.received_by_name||'—')+'</td><td>'+esc(x.status||'—')+'</td><td>'+esc(x.reference||'—')+'</td></tr>').join('');
+      const expRows=expenses.map(x=>'<tr><td>'+esc(x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'—')+'</td><td>'+esc(x.expense_type==='purchase'?'ক্রয়':x.expense_type==='salary'?'বেতন':'অন্যান্য')+'</td><td>'+esc(x.title||'—')+'</td><td>'+money(x.amount)+'</td><td>'+esc(x.method||'—')+'</td><td>'+esc(x.requested_by_name||'—')+'</td><td>অপেক্ষমাণ</td></tr>').join('');
+      el.querySelector('#cashLedgerSpreadsheetBox').outerHTML =
+        '<div class="cards"><div class="card"><div class="metric">বর্তমান জমা ব্যালেন্স</div><div class="value">'+money(balance||0)+'</div></div><div class="card"><div class="metric">অনুমোদিত জমা</div><div class="value">'+money(depTotal)+'</div></div><div class="card"><div class="metric">বর্তমান API-তে ফেরত আসা অপেক্ষমাণ খরচ</div><div class="value">'+money(expPending)+'</div></div></div>'+
+        '<section class="panel"><h2>শিট ১ — জমা টাকার হিসাব</h2>'+table(['তারিখ/সময়','চালান','ডিলার/ক্রেতা','জমা টাকা','মাধ্যম','জমা হয়েছে কোথায়','গ্রহণকারী','MD অবস্থা','রেফারেন্স'],depRows,'জমার রেকর্ড নেই')+'</section>'+
+        '<section class="panel" style="margin-top:16px"><h2>শিট ২ — খরচের হিসাব</h2>'+table(['তারিখ/সময়','খরচের খাত','বিবরণ','পরিমাণ','মাধ্যম','Entry করেছে','অবস্থা'],expRows,'API-তে অপেক্ষমাণ খরচ নেই')+'</section>';
+    } catch(error) {
+      el.querySelector('#cashLedgerSpreadsheetBox').innerHTML='<span class="danger">'+esc(normalizeError(error))+'</span>';
+    }
+  };
+  window.downloadCashLedgerCsv = function(kind) {
+    if(!memberIsManager()) return toast('শুধু ব্যবস্থাপনা পরিচালক ডাউনলোড করতে পারবেন');
+    const d=window._cashLedgerSpreadsheetData||{};
+    const rows=kind==='deposits'?(d.deposits||[]):(d.expenses||[]);
+    const headers=kind==='deposits'?['তারিখ/সময়','চালান','ডিলার/ক্রেতা','জমা টাকা','মাধ্যম','জমা হয়েছে কোথায়','গ্রহণকারী','MD অবস্থা','রেফারেন্স']:['তারিখ/সময়','খরচের খাত','বিবরণ','পরিমাণ','মাধ্যম','Entry করেছে','অবস্থা'];
+    const val=(x,k)=>String(x??'').replace(/[\r\n]+/g,' ').replace(/"/g,'""');
+    const data=[headers,...rows.map(x=>kind==='deposits'?[
+      x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'',x.sale_no||x.sale_id||'',x.customer||'',x.amount||0,x.method||'',x.destination||'',x.received_by_name||'',x.status||'',x.reference||''
+    ]:[
+      x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'',x.expense_type==='purchase'?'ক্রয়':x.expense_type==='salary'?'বেতন':'অন্যান্য',x.title||'',x.amount||0,x.method||'',x.requested_by_name||'','অপেক্ষমাণ'
+    ])].map(row=>row.map(v=>'"'+val(v)+'"').join(',')).join('\r\n');
+    const blob=new Blob(['\uFEFF'+data],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=(kind==='deposits'?'uttara-shoe-joma-takar-hisab':'uttara-shoe-khoroch-hisab')+'.csv';
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  };
+
   window.cashExpensePage = async function(el) {
     if (!memberIsManager()) {
       el.innerHTML = title('অনুমতি প্রয়োজন','জমা টাকা থেকে খরচ ও অনুমোদন শুধু ব্যবস্থাপনা পরিচালক নিয়ন্ত্রণ করবেন।');
