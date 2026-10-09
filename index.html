@@ -111,19 +111,32 @@ function render(){
 }
 window.render = render;
 
+window.updateCustomerOrderStage = async function(orderId,stage){
+ if(!isManager()){showError('শুধু ব্যবস্থাপনা পরিচালক অর্ডারের অবস্থা পরিবর্তন করতে পারবেন');return}
+ const labels={accepted:'অর্ডার গ্রহণ',dispatched:'ডেলিভারির জন্য পাঠানো',delivered:'ডেলিভারি সম্পন্ন',customer_received:'কাস্টমার পণ্য রিসিভ',cancelled:'অর্ডার বাতিল'};
+ const note=prompt(labels[stage]+' সম্পর্কে মন্তব্য (ঐচ্ছিক):')||'';
+ if(!confirm('অর্ডারের অবস্থা "'+labels[stage]+'" হিসেবে আপডেট করবেন?'))return;
+ try{if(typeof window.uttaraRequireMdApproval==='function')await window.uttaraRequireMdApproval('অর্ডারের অবস্থা: '+labels[stage]);const {data,error}=await window.uttaraSupabase.rpc('uttara_update_customer_order_stage',{p_order_id:orderId,p_stage:stage,p_note:note});if(error)throw error;toast('অর্ডারের অবস্থা আপডেট হয়েছে। SMS পাঠাতে SMS গেটওয়ে সংযোগ প্রয়োজন।');await window.customerOrdersPage(document.querySelector('#view'))}catch(e){showError(e.message||String(e))}
+};
 window.customerOrdersPage = async function(el){
- if(!isManager()){el.innerHTML=title('অনুমতি প্রয়োজন','অনলাইন অর্ডার অনুমোদন শুধু ব্যবস্থাপনা পরিচালক করতে পারবেন।');return}
- el.innerHTML=title('অনলাইন অর্ডার','ডিলার, পাইকার ও খুচরা ব্যবসায়ীদের পাঠানো অর্ডার যাচাই ও অনুমোদন করুন',btn('↻ হালনাগাদ','window.customerOrdersPage(document.querySelector("#view"))','secondary'))+'<div class="notice">অনুমোদনের সময় মজুত যাচাই হবে; অনুমোদিত অর্ডার একবারই বিক্রয়/চালানে রূপান্তরিত হবে।</div><div id="customerOrderRows" class="panel">অর্ডার লোড হচ্ছে…</div>';
+ if(!isManager()){el.innerHTML=title('অনুমতি প্রয়োজন','অনলাইন অর্ডার অনুমোদন ও ডেলিভারি আপডেট শুধু ব্যবস্থাপনা পরিচালক করতে পারবেন।');return}
+ el.innerHTML=title('অনলাইন অর্ডার','অর্ডার গ্রহণ, ডেলিভারি এবং কাস্টমার পণ্য গ্রহণের অবস্থা হালনাগাদ করুন',btn('↻ হালনাগাদ','window.customerOrdersPage(document.querySelector("#view"))','secondary'))+'<div class="notice">প্রতিটি ধাপের অবস্থা এখানে সংরক্ষিত হবে। SMS পাঠাতে আলাদা SMS গেটওয়ে সংযোগ প্রয়োজন।</div><div id="customerOrderRows" class="panel">অর্ডার লোড হচ্ছে…</div>';
  try{
   const client=window.uttaraSupabase;if(!client)throw new Error('ডেটাবেস সংযোগ পাওয়া যায়নি');
   const {data,error}=await client.rpc('uttara_list_customer_orders');if(error)throw error;
   const rows=(data||[]).map(o=>{
-   const items=Array.isArray(o.items)?o.items.map(i=>esc(i.model)+' '+esc(i.color||'')+' · '+bn(i.qty)+' জোড়া × '+money(i.price)).join('<br>'):'';
+   const items=Array.isArray(o.items)?o.items.map(i=>esc(i.model)+' '+esc(i.color||'')+' · সাইজ '+esc(i.size||i.sizes||'—')+' · '+bn(i.qty)+' জোড়া × '+money(i.price)).join('<br>'):'';
    const status=o.status==='pending'?'অনুমোদনের অপেক্ষায়':o.status==='approved'?'অনুমোদিত':'বাতিল';
-   const action=o.status==='pending'?'<button class="btn" onclick="window.reviewCustomerOrder(\''+esc(o.id)+'\',\'approved\')">অনুমোদন ও চালান</button> <button class="btn secondary" onclick="window.reviewCustomerOrder(\''+esc(o.id)+'\',\'rejected\')">বাতিল</button>':'';
-   return '<tr><td><b>'+esc(o.order_no)+'</b><div class="small">'+esc(fmtDate(String(o.created_at||'').slice(0,10)))+'</div></td><td><b>'+esc(o.customer_name)+'</b><div class="small">'+esc(o.business_type)+' · '+esc(o.phone)+'</div><div class="small">'+esc(o.address)+'</div></td><td>'+items+(o.notes?'<div class="small">মন্তব্য: '+esc(o.notes)+'</div>':'')+'</td><td>'+money(o.total)+'</td><td><span class="badge">'+status+'</span>'+(o.review_note?'<div class="small">'+esc(o.review_note)+'</div>':'')+'</td><td>'+action+'</td></tr>';
+   const stages={not_accepted:'অর্ডার গ্রহণ বাকি',accepted:'অর্ডার গৃহীত',dispatched:'ডেলিভারির জন্য পাঠানো',delivered:'ডেলিভারি সম্পন্ন',customer_received:'কাস্টমার পণ্য রিসিভ করেছেন',cancelled:'বাতিল'};
+   const ds=o.delivery_status|| (o.status==='approved'?'accepted':'not_accepted');
+   let actions='';
+   if(o.status==='pending')actions='<button class="btn" onclick="window.reviewCustomerOrder(\''+esc(o.id)+'\',\'approved\')">অনুমোদন ও চালান</button> <button class="btn secondary" onclick="window.reviewCustomerOrder(\''+esc(o.id)+'\',\'rejected\')">বাতিল</button>';
+   if(o.status==='approved'&&ds==='accepted')actions+='<button class="btn" onclick="window.updateCustomerOrderStage(\''+esc(o.id)+'\',\'dispatched\')">ডেলিভারির জন্য পাঠান</button>';
+   if(o.status==='approved'&&ds==='dispatched')actions+='<button class="btn" onclick="window.updateCustomerOrderStage(\''+esc(o.id)+'\',\'delivered\')">ডেলিভারি সম্পন্ন</button>';
+   if(o.status==='approved'&&ds==='delivered')actions+='<button class="btn" onclick="window.updateCustomerOrderStage(\''+esc(o.id)+'\',\'customer_received\')">কাস্টমার রিসিভ নিশ্চিত</button>';
+   return '<tr><td><b>'+esc(o.order_no)+'</b><div class="small">'+esc(fmtDate(String(o.created_at||'').slice(0,10)))+'</div></td><td><b>'+esc(o.customer_name)+'</b><div class="small">'+esc(o.business_type)+' · '+esc(o.phone)+'</div><div class="small">'+esc(o.address)+'</div></td><td>'+items+(o.notes?'<div class="small">মন্তব্য: '+esc(o.notes)+'</div>':'')+'</td><td>'+money(o.total)+'<div class="small">অগ্রিম: '+money(o.advance_paid||0)+' · বকেয়া: '+money(o.due??Math.max(0,(o.total||0)-(o.advance_paid||0)))+'</div></td><td><span class="badge">'+status+'</span><div class="small">'+esc(stages[ds]||ds)+'</div>'+(o.status_updated_at?'<div class="small">আপডেট: '+esc(fmtDate(String(o.status_updated_at).slice(0,10)))+'</div>':'')+(o.review_note?'<div class="small">'+esc(o.review_note)+'</div>':'')+(o.tracking_note?'<div class="small">'+esc(o.tracking_note)+'</div>':'')+'</td><td>'+actions+'</td></tr>';
   }).join('');
-  const root=document.querySelector('#customerOrderRows');if(root)root.innerHTML=table(['অর্ডার','ক্রেতা','পণ্য','মোট','অবস্থা','কাজ'],rows,'এখনও কোনো অনলাইন অর্ডার আসেনি');
+  const root=document.querySelector('#customerOrderRows');if(root)root.innerHTML=table(['অর্ডার','ক্রেতা ও ঠিকানা','পণ্য','হিসাব','অবস্থা/ট্র্যাকিং','কাজ'],rows,'এখনও কোনো অনলাইন অর্ডার আসেনি');
  }catch(e){const root=document.querySelector('#customerOrderRows');if(root)root.innerHTML='<div class="notice danger">অর্ডার লোড হয়নি: '+esc(e.message||e)+'</div>'}
 };
 
