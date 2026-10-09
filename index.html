@@ -114,8 +114,11 @@ function home(el){let todaySales=db.sales.filter(s=>s.date===date()).reduce((a,s
 function materialsPage(el){el.innerHTML=title('কাঁচামাল','কাঁচামালের মজুত ও কেনাকাটার হিসাব',btn('＋ কাঁচামাল যোগ','openMaterial()'))+`<div class="cards"><div class="card"><div class="metric">মোট কাঁচামালের ধরন</div><div class="value">${bn(db.materials.length)}</div></div><div class="card"><div class="metric">কম মজুত</div><div class="value">${bn(db.materials.filter(m=>m.qty<=(m.min||0)).length)}</div></div></div><div class="toolbar"><input id="search" placeholder="কাঁচামাল খুঁজুন…" oninput="filterTable()"><button class="btn secondary" onclick="openMaterial(true)">＋ কেনাকাটা যোগ</button></div><div id="dataTable">${materialTable()}</div>`}function materialTable(q=''){
   let rows=db.materials.filter(m=>m.name.toLowerCase().includes(q.toLowerCase())).map(m=>{
     const pairCost=Number(m.yieldPerUnit)>0?Number(m.cost||0)/Number(m.yieldPerUnit):null;
-    const price='<div>'+money(m.cost)+' / '+esc(m.unit||'একক')+'</div>'+
-      (pairCost!==null?'<div class="small">প্রতি জোড়ার খরচ: '+money(pairCost)+'</div><div class="small">বর্তমান মজুতে উৎপাদন: '+bn((Number(m.qty)||0)*Number(m.yieldPerUnit))+' জোড়া</div>':'');
+    const price=pairCost!==null
+      ? '<div><b>'+money(pairCost)+' / জোড়া</b></div>'+
+        '<div class="small">ক্রয়-রেফারেন্স: '+money(m.cost)+' / '+esc(m.unit||'একক')+'</div>'+
+        '<div class="small">মজুতে উৎপাদন-সমতুল্য: '+bn((Number(m.qty)||0)*Number(m.yieldPerUnit))+' জোড়া</div>'
+      : '<div><b>'+money(m.cost)+' / '+esc(m.unit||'একক')+'</b></div>';
     return '<tr><td><b>'+esc(m.name)+'</b></td><td>'+esc(m.category||'—')+'</td><td>'+fmtStock(m)+'</td>'+
       '<td>'+bn(m.min||0)+' '+esc(m.unit||'')+'</td><td>'+price+'</td><td>'+esc(m.supplier||'—')+'</td>'+
       '<td>'+(m.qty<=(m.min||0)?'<span class="badge warn">পুনরায় কিনুন</span>':'<span class="badge">মজুত আছে</span>')+'</td>'+
@@ -753,9 +756,9 @@ function openBatch(){modal('নতুন উৎপাদন অর্ডার',
   let options=db.materials.map(m=>{
     const yieldPerUnit=Number(m.yieldPerUnit)||0;
     const pairCost=yieldPerUnit>0?Number(m.cost||0)/yieldPerUnit:null;
-    const extra=pairCost!==null?' · প্রতি জোড়া '+money(pairCost):'';
+    const extra=pairCost!==null?' · মূল খরচ '+money(pairCost)+'/জোড়া · ক্রয়-রেফারেন্স '+money(m.cost||0)+'/'+esc(m.unit||'একক'):' · '+money(m.cost||0)+'/'+esc(m.unit||'একক');
     return '<option value="'+esc(m.id)+'" data-cost="'+(Number(m.cost)||0)+'" data-unit="'+esc(m.unit||'একক')+'" data-yield="'+yieldPerUnit+'">'+
-      esc(m.name)+' · '+money(m.cost||0)+'/'+esc(m.unit||'একক')+extra+'</option>';
+      esc(m.name)+extra+'</option>';
   }).join('');
   return '<div class="lineitem planline"><select class="planmaterial" onchange="planMaterialChanged(this);planCalc()"><option value="">কাঁচামাল নির্বাচন</option>'+options+'</select>'+
     '<input class="planqty" type="number" min="0" step="0.000001" placeholder="প্রতি জোড়ায় ব্যবহৃত একক" oninput="planCalc()">'+
