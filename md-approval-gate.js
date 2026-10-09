@@ -57,7 +57,7 @@
 
   window.uttaraRequireMdApproval = approve;
 
-  const wrap = (name, action, original => {
+  const wrap = (name, action, original) => {
     if (typeof original !== 'function') return;
     window[name] = async function (...args) {
       try {
