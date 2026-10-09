@@ -736,6 +736,20 @@ const enterApp = async authUser => {
     return originalReceivePayment(saleId);
   };
 
+  window.reviewCustomerOrder = async function(orderId, decision) {
+    if (!memberIsManager()) return showError('শুধু ব্যবস্থাপনা পরিচালক অনলাইন অর্ডার পর্যালোচনা করতে পারবেন');
+    const action = decision === 'approved' ? 'অনুমোদন করে বিক্রয় চালান তৈরি' : 'বাতিল';
+    if (!confirm('এই অর্ডারটি '+action+' করবেন?')) return;
+    const note = decision === 'rejected' ? (prompt('বাতিলের কারণ (ঐচ্ছিক):') || '') : '';
+    try {
+      if (typeof window.uttaraRequireMdApproval === 'function') await window.uttaraRequireMdApproval('অনলাইন অর্ডার '+action);
+      const {data,error}=await client.rpc('uttara_review_customer_order',{p_order_id:orderId,p_decision:decision,p_note:note});
+      if(error) throw error;
+      await refreshSharedData(true);
+      toast(decision==='approved'?'অর্ডার অনুমোদিত; বিক্রয় চালান তৈরি ও স্টক সমন্বয় হয়েছে':'অর্ডার বাতিল হয়েছে');
+    } catch(error) { showError(normalizeError(error)); }
+  };
+
   window.userAdminPage = async function (el) {
     if (!memberIsManager()) { el.innerHTML = title('অনুমতি প্রয়োজন','এই পৃষ্ঠা শুধু পরিচালকের জন্য।'); return; }
     const { data, error } = await client.from('app_members').select('*').order('display_name');
