@@ -128,6 +128,15 @@
       if (error) throw error;
       for (const payload of data || []) all.push({collection:'products', record_id:String(payload.id), payload, owner_id:null, created_by:null, created_at:null, updated_at:null});
     }
+    if (!memberIsManager() && (member?.permissions || []).includes('storeInOut')) {
+      const { data, error } = await client.rpc('uttara_list_store_products');
+      if (error) throw error;
+      for (const row of data || []) {
+        const payload = row.payload || {};
+        const recordId = String(row.record_id ?? payload.id ?? '');
+        if (recordId) all.push({collection:'products', record_id:recordId, payload, owner_id:null, created_by:null, created_at:null, updated_at:null});
+      }
+    }
     return all;
   };
   const readMembers = async () => {
@@ -362,6 +371,9 @@ const enterApp = async authUser => {
     if (!cloudActive || !signedUser || !member) throw new Error('লগইন সেশন পাওয়া যায়নি।');
     const allowed = memberIsManager() || (member.permissions || []).includes('storeInOut');
     if (!allowed) throw new Error('স্টোর ইন/আউট এন্ট্রির অনুমতি পরিচালক দেননি।');
+    if (memberIsManager() && typeof window.uttaraRequireMdApproval === 'function') {
+      await window.uttaraRequireMdApproval('স্টোর ইন/আউট মজুত পরিবর্তন');
+    }
     const { data, error } = await client.rpc('uttara_store_stock_move', {
       p_product_id: String(productId),
       p_direction: String(direction),
