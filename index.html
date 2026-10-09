@@ -115,7 +115,7 @@ function materialsPage(el){el.innerHTML=title('কাঁচামাল','কা
   let rows=db.materials.filter(m=>m.name.toLowerCase().includes(q.toLowerCase())).map(m=>{
     const pairCost=Number(m.yieldPerUnit)>0?Number(m.cost||0)/Number(m.yieldPerUnit):null;
     const price='<div>'+money(m.cost)+' / '+esc(m.unit||'একক')+'</div>'+
-      (pairCost!==null?'<div class="small">প্রতি জোড়ার খরচ: '+money(pairCost)+'</div>':'');
+      (pairCost!==null?'<div class="small">প্রতি জোড়ার খরচ: '+money(pairCost)+'</div><div class="small">বর্তমান মজুতে উৎপাদন: '+bn((Number(m.qty)||0)*Number(m.yieldPerUnit))+' জোড়া</div>':'');
     return '<tr><td><b>'+esc(m.name)+'</b></td><td>'+esc(m.category||'—')+'</td><td>'+fmtStock(m)+'</td>'+
       '<td>'+bn(m.min||0)+' '+esc(m.unit||'')+'</td><td>'+price+'</td><td>'+esc(m.supplier||'—')+'</td>'+
       '<td>'+(m.qty<=(m.min||0)?'<span class="badge warn">পুনরায় কিনুন</span>':'<span class="badge">মজুত আছে</span>')+'</td>'+
@@ -687,13 +687,14 @@ function openMaterial(add=false,mid=''){
   const form=!add
     ? '<label>কাঁচামালের নাম<input id="mname" required value="'+esc(m?.name||'')+'"></label>'+
       '<label>শ্রেণি<input id="mcat" placeholder="যেমন: সোল, আঠা" value="'+esc(m?.category||'')+'"></label>'+
-      '<label>বর্তমান পরিমাণ<input id="mqty" type="number" min="0" step="0.01" value="'+(m?.qty||0)+'"></label>'+
+      '<label>বর্তমান পরিমাণ<input id="mqty" type="number" min="0" step="0.01" value="'+(m?.qty||0)+'" oninput="updateMaterialUnitCost()"></label>'+
       '<label>একক<select id="munit" onchange="materialUnitChanged()">'+options+'</select></label>'+
       '<label>সতর্কসীমা<input id="mmin" type="number" min="0" step="0.01" value="'+(m?.min||0)+'"></label>'+
       '<label><span id="mcostLabel">একক দাম (প্রতি '+esc(currentUnit)+')</span><input id="mcost" type="number" min="0" step="0.01" value="'+(m?.cost||0)+'" oninput="updateMaterialUnitCost()"></label>'+
       '<div id="materialYieldFields" style="display:'+(conversion?'contents':'none')+'">'+
         '<label><span id="myieldLabel">প্রতি '+esc(currentUnit)+'-এ উৎপাদন (জোড়া)</span><input id="myield" type="number" min="0.000001" step="0.000001" value="'+(m?.yieldPerUnit||'')+'" oninput="updateMaterialUnitCost()"></label>'+
-        '<label>প্রতি জোড়ার একক মূল্য (অটো)<input id="mpaircost" type="number" readonly value="'+(m?.yieldPerUnit>0?(Number(m.cost||0)/Number(m.yieldPerUnit)).toFixed(2):'')+'"></label>'+
+        '<label>প্রতি জোড়ার কাঁচামাল খরচ (অটো)<input id="mpaircost" type="number" readonly value="'+(m?.yieldPerUnit>0?(Number(m.cost||0)/Number(m.yieldPerUnit)).toFixed(2):'')+'"></label>'+
+        '<label class="wide">বর্তমান মজুতে মোট উৎপাদন (জোড়া, অটো)<input id="mcapacity" type="number" readonly value="'+(m?.yieldPerUnit>0?(Number(m.qty||0)*Number(m.yieldPerUnit)).toLocaleString("en-US",{maximumFractionDigits:3}):'')+'"></label>'+
       '</div>'+
       '<label class="wide">সরবরাহকারী<input id="msupplier" value="'+esc(m?.supplier||'')+'"></label>'
     : '<label class="wide">কাঁচামাল<select id="mid" required>'+db.materials.map(x=>'<option value="'+esc(x.id)+'" '+(x.id===mid?'selected':'')+'>'+esc(x.name)+' · বর্তমান '+bn(x.qty)+' '+esc(x.unit)+'</option>').join('')+'</select></label>'+
@@ -728,6 +729,9 @@ function updateMaterialUnitCost(){
   const yieldPerUnit=Number(val('myield'))||0;
   const output=document.querySelector('#mpaircost');
   if(output)output.value=special&&yieldPerUnit>0?(cost/yieldPerUnit).toFixed(2):'';
+  const quantity=Number(val('mqty'))||0;
+  const capacity=document.querySelector('#mcapacity');
+  if(capacity)capacity.value=special&&yieldPerUnit>0?(quantity*yieldPerUnit).toLocaleString('en-US',{maximumFractionDigits:3}):'';
 }
 function saveMaterial(mid){
   if(mid&&!requireManagerAction())return;
