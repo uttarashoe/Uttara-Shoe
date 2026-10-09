@@ -546,7 +546,86 @@ function editDealer(did){if(!requireManagerAction())return;const d=db.dealers.fi
 function deleteDealer(did){if(!requireManagerAction())return;const d=db.dealers.find(x=>x.id===did);if(!d)return;if(db.sales.some(s=>(s.kind==='ডিলার'||s.kind==='পাইকার')&&s.customer===d.name))return toast("এই ডিলার/পাইকারের বিক্রয় ইতিহাস আছে; বিয়োজন করা যাবে না");if(!confirm("এই ডিলার/পাইকার বিয়োজন করবেন?"))return;db.dealers=db.dealers.filter(x=>x.id!==did);logActivity("ডিলার বিয়োজন",d.name);save();toast("ডিলার বিয়োজন হয়েছে")}
 function printPartyList(kind){let rows=kind==='supplier'?[...new Set(db.supplierPurchases.filter(p=>isManager()||p.owner===user()).map(p=>p.supplier))].map(n=>({name:n,phone:'',address:''})):db.dealers.filter(d=>d.type===kind&&(isManager()||(d.owner||'ব্যবস্থাপক')===user())).map(d=>({name:d.name,phone:d.phone||'',address:d.address||''}));let w=window.open('','_blank','width=750,height=700');if(!w){toast('প্রিন্ট খুলতে ব্রাউজারের পপআপ অনুমতি দিন');return}w.document.write(`<html lang="bn"><meta charset="utf-8"><title>উত্তরা সুজ · ${esc(kind)}</title><style>body{font-family:Arial,sans-serif;max-width:760px;margin:30px auto;color:#193b32}h1{text-align:center;margin:0}.brandhead{text-align:center}.brandlogo{display:block;width:100px;height:60px;object-fit:contain;margin:0 auto 6px}table{width:100%;border-collapse:collapse;margin-top:20px}td,th{padding:10px;border:1px solid #ddd;text-align:left}</style><div class="brandhead"><img class="brandlogo" src="${document.querySelector(".brand-mark").src}" alt="উত্তরা সুজ লোগো"><h1>উত্তরা সুজ</h1></div><p style="text-align:center">${kind==='supplier'?'সরবরাহকারী তালিকা':esc(kind)+' তালিকা'}</p><table><tr><th>নাম</th><th>মোবাইল</th><th>ঠিকানা</th></tr>${rows.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.phone)}</td><td>${esc(x.address)}</td></tr>`).join('')}</table><script>window.print()<\/script></html>`);w.document.close()}
 function materialUsagePage(el){if(!canAccess('materialUsage')){el.innerHTML=title('কাঁচামাল ব্যবহার','এই অপশন ব্যবহারের অনুমতি নেই');return}let records=db.materialUsages.filter(u=>(u.date||'').slice(0,7)===usageMonth&&(isManager()||u.by===user())).slice().reverse(),total=records.reduce((a,u)=>a+u.total,0),rows=records.map(u=>{let b=db.batches.find(x=>x.id===u.batchId);return `<tr><td>${fmtDate(u.date)}</td><td>${esc(u.material)}</td><td>${esc(b?b.model+' · '+b.color:u.batchLabel||'সাধারণ ব্যবহার')}</td><td>${bn(u.qty)} ${esc(u.unit)}</td><td>${money(u.unitCost)}</td><td>${money(u.total)}</td><td>${esc(u.by)}</td>${isManager()?`<td><button class="btn secondary" onclick="removeMaterialUsage('${u.id}')">বাতিল / মজুত ফেরত</button></td>`:''}</tr>`}).join('');el.innerHTML=title('কাঁচামাল ব্যবহার','উৎপাদনে ব্যবহৃত কাঁচামাল, মজুত থেকে কর্তন এবং প্রকৃত খরচ',btn('＋ ব্যবহার নথিভুক্ত','openMaterialUsage()'))+`<div class="toolbar"><label>মাস <input type="month" value="${usageMonth}" onchange="usageMonth=this.value;render()"></label><b>এই মাসের কাঁচামাল খরচ: ${money(total)}</b></div>`+table(['তারিখ','কাঁচামাল','উৎপাদন অর্ডার','ব্যবহারের পরিমাণ','একক খরচ','মোট খরচ','এন্ট্রি করেছেন',...(isManager()?['কাজ']:[])],rows,'এই মাসে কোনো ব্যবহার নথিভুক্ত হয়নি')}
-function openMaterialUsage(){if(!db.materials.length){toast('আগে কাঁচামাল যোগ করুন');return}modal('কাঁচামাল ব্যবহার নথিভুক্ত',`<div class="formgrid"><label>তারিখ<input id="usageDate" type="date" value="${date()}" required></label><label>উৎপাদন অর্ডার<select id="usageBatch"><option value="">সাধারণ ব্যবহার</option>${db.batches.map(b=>`<option value="${esc(b.id)}">${esc(b.model)} · ${esc(b.color)} · ${fmtDate(b.date)}</option>`).join('')}</select></label></div><p class="small">একক খরচ বর্তমান কাঁচামাল দর থেকে আসবে; প্রয়োজন হলে পরিবর্তন করুন। ব্যবহার সংরক্ষণ করলে মজুত থেকে পরিমাণ কমবে।</p><div id="usageLines">${materialUsageLine()}</div><button type="button" class="btn secondary" onclick="addMaterialUsageLine()">＋ কাঁচামাল যোগ</button><div class="row"><b>মোট কাঁচামাল খরচ</b><b id="usageTotal">৳ ০</b></div>`,`saveMaterialUsage()`)}function materialUsageLine(){let opts=db.materials.map(m=>`<option value="${esc(m.id)}" data-cost="${Number(m.cost)||0}">${esc(m.name)} · মজুত ${bn(m.qty)} ${esc(m.unit||'একক')}</option>`).join('');return `<div class="lineitem usageline"><select class="usagematerial" onchange="usageMaterialChanged(this);calcUsageTotal()" required><option value="">কাঁচামাল নির্বাচন</option>${opts}</select><input class="usageqty" type="number" min="0.001" step="0.001" placeholder="পরিমাণ" oninput="calcUsageTotal()" required><input class="usagecost" type="number" min="0" step="0.01" placeholder="একক খরচ" oninput="calcUsageTotal()" required><button type="button" class="del" onclick="this.parentElement.remove();calcUsageTotal()">×</button></div>`}function addMaterialUsageLine(){document.querySelector('#usageLines').insertAdjacentHTML('beforeend',materialUsageLine())}function usageMaterialChanged(sel){let opt=sel.selectedOptions[0],row=sel.closest('.usageline');row.querySelector('.usagecost').value=opt.dataset.cost||0}function calcUsageTotal(){let total=[...document.querySelectorAll('.usageline')].reduce((a,r)=>a+(Number(r.querySelector('.usageqty').value)||0)*(Number(r.querySelector('.usagecost').value)||0),0),el=document.querySelector('#usageTotal');if(el)el.textContent=money(total)}function saveMaterialUsage(){if(!canAccess('materialUsage')){toast('কাঁচামাল ব্যবহারের অনুমতি নেই');return}let lines=[...document.querySelectorAll('.usageline')].map(r=>({materialId:r.querySelector('.usagematerial').value,qty:Number(r.querySelector('.usageqty').value)||0,unitCost:Number(r.querySelector('.usagecost').value)||0}));if(!lines.length||lines.some(x=>!x.materialId||x.qty<=0)){toast('কাঁচামাল ও ব্যবহারের পরিমাণ যাচাই করুন');return}let need={};lines.forEach(x=>need[x.materialId]=(need[x.materialId]||0)+x.qty);for(let mid in need){let m=db.materials.find(x=>x.id===mid);if(!m||m.qty<need[mid]){toast((m?.name||'একটি কাঁচামাল')+'-এর মজুত পর্যাপ্ত নয়');return}}let batchId=document.querySelector('#usageBatch').value,batch=db.batches.find(x=>x.id===batchId),day=val('usageDate')||date();lines.forEach(x=>{let m=db.materials.find(y=>y.id===x.materialId),total=x.qty*x.unitCost;m.qty-=x.qty;db.materialUsages.push({id:id(),date:day,materialId:m.id,material:m.name,unit:m.unit,qty:x.qty,unitCost:x.unitCost,total,batchId:batch?.id||'',batchLabel:batch?batch.model+' · '+batch.color:'সাধারণ ব্যবহার',by:user()})});logActivity('কাঁচামাল ব্যবহার',day+' · '+lines.length+'টি আইটেম · '+money(lines.reduce((a,x)=>a+x.qty*x.unitCost,0)));closeModal();save();toast('ব্যবহার ও কাঁচামালের খরচ সংরক্ষিত হয়েছে')}function removeMaterialUsage(uid){if(!isManager())return;let u=db.materialUsages.find(x=>x.id===uid);if(!u||!confirm('এই ব্যবহারের এন্ট্রি বাতিল করে মজুত ফেরত দেবেন?'))return;let m=db.materials.find(x=>x.id===u.materialId);if(m)m.qty+=u.qty;db.materialUsages=db.materialUsages.filter(x=>x.id!==uid);logActivity('কাঁচামাল ব্যবহার বাতিল',u.material+' · '+u.qty);save();toast('মজুত ফেরত ও ব্যবহার বাতিল হয়েছে')}function deleteAttendanceRecord(aid){if(!requireManagerAction())return;const i=db.attendance.findIndex(x=>x.id===aid);if(i<0)return;if(!confirm("এই হাজিরা রেকর্ড বিয়োজন করবেন?"))return;db.attendance.splice(i,1);logActivity("হাজিরা রেকর্ড বিয়োজন",aid);save();toast("হাজিরা রেকর্ড বিয়োজন হয়েছে")}
+function openMaterialUsage(){if(!db.materials.length){toast('আগে কাঁচামাল যোগ করুন');return}modal('কাঁচামাল ব্যবহার নথিভুক্ত',`<div class="formgrid"><label>তারিখ<input id="usageDate" type="date" value="${date()}" required></label><label>উৎপাদন অর্ডার<select id="usageBatch"><option value="">সাধারণ ব্যবহার</option>${db.batches.map(b=>`<option value="${esc(b.id)}">${esc(b.model)} · ${esc(b.color)} · ${fmtDate(b.date)}</option>`).join('')}</select></label></div><p class="small">একক খরচ বর্তমান কাঁচামাল দর থেকে আসবে; প্রয়োজন হলে পরিবর্তন করুন। ব্যবহার সংরক্ষণ করলে মজুত থেকে পরিমাণ কমবে।</p><div id="usageLines">${materialUsageLine()}</div><button type="button" class="btn secondary" onclick="addMaterialUsageLine()">＋ কাঁচামাল যোগ</button><div class="row"><b>মোট কাঁচামাল খরচ</b><b id="usageTotal">৳ ০</b></div>`,`saveMaterialUsage()`)}function materialUsageLine(){
+  const opts=db.materials.map(m=>{
+    const yieldPerUnit=Number(m.yieldPerUnit)||0;
+    const converted=['শীট','রোল','ডর্জন'].includes(m.unit)&&yieldPerUnit>0;
+    const price=converted?Number(m.cost||0)/yieldPerUnit:Number(m.cost||0);
+    const stock=converted?(Number(m.qty||0)*yieldPerUnit):(Number(m.qty)||0);
+    const displayUnit=converted?'জোড়া (সমতুল্য)':(m.unit||'একক');
+    return '<option value="'+esc(m.id)+'" data-cost="'+price+'" data-unit="'+esc(displayUnit)+'" data-stock="'+stock+'" data-yield="'+(converted?yieldPerUnit:0)+'" data-converted="'+(converted?'true':'false')+'">'+
+      esc(m.name)+' · মজুত '+bn(stock)+' '+esc(displayUnit)+' · মূল্য '+money(price)+'/'+esc(displayUnit)+'</option>';
+  }).join('');
+  return '<div class="lineitem usageline"><select class="usagematerial" onchange="usageMaterialChanged(this);calcUsageTotal()" required><option value="">কাঁচামাল নির্বাচন</option>'+opts+'</select>'+
+    '<input class="usageqty" type="number" min="0.001" step="0.001" placeholder="ব্যবহারের পরিমাণ" oninput="calcUsageTotal()" required>'+
+    '<input class="usagecost" type="number" min="0" step="0.01" placeholder="একক খরচ" oninput="calcUsageTotal()" required>'+
+    '<button type="button" class="del" onclick="this.parentElement.remove();calcUsageTotal()">×</button></div>';
+}
+function addMaterialUsageLine(){document.querySelector('#usageLines').insertAdjacentHTML('beforeend',materialUsageLine())}
+function usageMaterialChanged(select){
+  const option=select.selectedOptions[0],row=select.closest('.usageline');
+  if(!option||!row)return;
+  row.querySelector('.usagecost').value=option.dataset.cost||0;
+  const qty=row.querySelector('.usageqty');
+  qty.placeholder='ব্যবহারের পরিমাণ ('+(option.dataset.unit||'একক')+')';
+  qty.title=option.dataset.converted==='true'
+    ? 'জোড়া (সমতুল্য) লিখুন; মজুত থেকে প্রয়োজনীয় শীট/রোল/ডর্জন কমবে'
+    : 'কাঁচামালের ব্যবহারের পরিমাণ লিখুন';
+}
+function calcUsageTotal(){
+  const total=[...document.querySelectorAll('.usageline')].reduce((sum,row)=>
+    sum+(Number(row.querySelector('.usageqty').value)||0)*(Number(row.querySelector('.usagecost').value)||0),0);
+  const node=document.querySelector('#usageTotal');if(node)node.textContent=money(total);
+}
+function saveMaterialUsage(){
+  if(!canAccess('materialUsage')){toast('কাঁচামাল ব্যবহারের অনুমতি নেই');return}
+  const lines=[...document.querySelectorAll('.usageline')].map(row=>{
+    const select=row.querySelector('.usagematerial');
+    const option=select.selectedOptions[0];
+    return {
+      materialId:select.value,
+      qty:Number(row.querySelector('.usageqty').value)||0,
+      unitCost:Number(row.querySelector('.usagecost').value)||0,
+      converted:option?.dataset.converted==='true',
+      yieldPerUnit:Number(option?.dataset.yield)||0,
+      useUnit:option?.dataset.unit||'একক'
+    };
+  });
+  if(!lines.length||lines.some(x=>!x.materialId||x.qty<=0)){
+    toast('কাঁচামাল ও ব্যবহারের পরিমাণ যাচাই করুন');return;
+  }
+  const need={};
+  lines.forEach(x=>{
+    const physicalQty=x.converted&&x.yieldPerUnit>0?x.qty/x.yieldPerUnit:x.qty;
+    need[x.materialId]=(need[x.materialId]||0)+physicalQty;
+  });
+  for(const mid in need){
+    const m=db.materials.find(x=>x.id===mid);
+    if(!m||Number(m.qty)<need[mid]){
+      const needPairs=lines.filter(x=>x.materialId===mid).reduce((sum,x)=>sum+x.qty,0);
+      const available=m&&Number(m.yieldPerUnit)>0?Number(m.qty)*Number(m.yieldPerUnit):Number(m?.qty||0);
+      toast((m?.name||'একটি কাঁচামাল')+'-এর মজুত পর্যাপ্ত নয় (উপলব্ধ '+bn(available)+')');return;
+    }
+  }
+  const batchId=document.querySelector('#usageBatch').value;
+  const batch=db.batches.find(x=>x.id===batchId);
+  const day=val('usageDate')||date();
+  lines.forEach(x=>{
+    const m=db.materials.find(y=>y.id===x.materialId);
+    const physicalQty=x.converted&&x.yieldPerUnit>0?x.qty/x.yieldPerUnit:x.qty;
+    const total=x.qty*x.unitCost;
+    m.qty-=physicalQty;
+    db.materialUsages.push({
+      id:id(),date:day,materialId:m.id,material:m.name,
+      unit:x.useUnit,qty:x.qty,stockQty:physicalQty,stockUnit:m.unit,
+      unitCost:x.unitCost,total,batchId:batch?.id||'',
+      batchLabel:batch?batch.model+' · '+batch.color:'সাধারণ ব্যবহার',by:user()
+    });
+  });
+  logActivity('কাঁচামাল ব্যবহার',day+' · '+lines.length+'টি আইটেম · '+money(lines.reduce((sum,x)=>sum+x.qty*x.unitCost,0)));
+  closeModal();save();toast('ব্যবহার ও কাঁচামালের খরচ সংরক্ষিত হয়েছে');
+}
+function removeMaterialUsage(uid){if(!isManager())return;let u=db.materialUsages.find(x=>x.id===uid);if(!u||!confirm('এই ব্যবহারের এন্ট্রি বাতিল করে মজুত ফেরত দেবেন?'))return;let m=db.materials.find(x=>x.id===u.materialId);if(m)m.qty+=Number(u.stockQty??u.qty)||0;db.materialUsages=db.materialUsages.filter(x=>x.id!==uid);logActivity('কাঁচামাল ব্যবহার বাতিল',u.material+' · '+u.qty);save();toast('মজুত ফেরত ও ব্যবহার বাতিল হয়েছে')}function deleteAttendanceRecord(aid){if(!requireManagerAction())return;const i=db.attendance.findIndex(x=>x.id===aid);if(i<0)return;if(!confirm("এই হাজিরা রেকর্ড বিয়োজন করবেন?"))return;db.attendance.splice(i,1);logActivity("হাজিরা রেকর্ড বিয়োজন",aid);save();toast("হাজিরা রেকর্ড বিয়োজন হয়েছে")}
 function staffCostsPage(el){let isAdmin=isManager(),targets=db.staffTargets.filter(t=>t.month===targetMonth),rows=targets.map(t=>{let achieved=t.metric==='sales'?db.sales.filter(x=>x.by===t.person&&(x.date||'').slice(0,7)===t.month).reduce((a,x)=>a+x.total,0):db.batches.filter(x=>(x.completedBy||x.by)===t.person&&x.stage===5&&x.stocked&&(x.completedDate||x.date||'').slice(0,7)===t.month).reduce((a,x)=>a+Math.max(0,(Number(x.good??x.target)||0)-(Number(x.reject)||0)),0),percent=t.target>0?achieved/t.target*100:0,label=t.metric==='sales'?'বিক্রয় (৳)':'উৎপাদন (জোড়া)';return `<tr><td><b>${esc(t.person)}</b></td><td>${label}</td><td>${t.metric==='sales'?money(t.target):bn(t.target)+' জোড়া'}</td><td>${t.metric==='sales'?money(achieved):bn(achieved)+' জোড়া'}</td><td><div class="progress" style="width:130px"><i style="width:${Math.min(100,percent)}%"></i></div><div class="small">${bn(Math.round(percent))}%</div></td>${isAdmin?`<td><button class="btn secondary" onclick="deleteStaffTarget('${t.id}')">বাতিল</button></td>`:''}</tr>`}).join('');el.innerHTML=title('কর্মকর্তা ও কর্মচারীদের লক্ষ্যমাত্রা','মাসভিত্তিক বিক্রয় বা উৎপাদনের লক্ষ্য এবং স্বয়ংক্রিয় অর্জন',isAdmin?btn('＋ লক্ষ্যমাত্রা নির্ধারণ','openStaffTarget()'): '')+`<div class="toolbar"><label>মাস <input type="month" value="${targetMonth}" onchange="targetMonth=this.value;render()"></label></div><div class="notice">বিক্রয় লক্ষ্য বিক্রির এন্ট্রি করা ব্যবহারকারীর বিক্রির পরিমাণ থেকে গণনা হয়। উৎপাদন লক্ষ্য প্যাকিং সম্পন্ন করা ব্যবহারকারীর ভালো জোড়া থেকে গণনা হয়।</div>`+table(['কর্মকর্তা / কর্মচারী','লক্ষ্যের ধরন','লক্ষ্য','অর্জন','অগ্রগতি',...(isAdmin?['কাজ']:[])],rows,'এই মাসে কোনো লক্ষ্যমাত্রা নির্ধারণ করা হয়নি')}
 function openStaffTarget(){if(!requireManagerAction())return;let people=db.users.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');modal('কর্মীর মাসিক লক্ষ্যমাত্রা',`<div class="formgrid"><label>কর্মকর্তা / কর্মচারী<select id="targetPerson" required>${people}</select></label><label>লক্ষ্যের ধরন<select id="targetMetric"><option value="sales">বিক্রয় মূল্য (টাকা)</option><option value="production">উৎপাদন (জোড়া)</option></select></label><label>মাস<input id="targetMonthInput" type="month" value="${targetMonth}" required></label><label>লক্ষ্য<input id="targetValue" type="number" min="1" required></label></div>`,`saveStaffTarget()`)}function saveStaffTarget(){if(!requireManagerAction())return;let person=val('targetPerson'),metric=val('targetMetric'),month=val('targetMonthInput'),target=num('targetValue');if(!person||!month||target<=0)return toast('নাম, মাস ও লক্ষ্য ঠিকভাবে দিন');let t=db.staffTargets.find(x=>x.person===person&&x.metric===metric&&x.month===month);if(t)t.target=target;else db.staffTargets.push({id:id(),person,metric,month,target});logActivity('কর্মী লক্ষ্যমাত্রা নির্ধারণ',person+' · '+month+' · '+(metric==='sales'?'বিক্রয়':'উৎপাদন')+' · '+target);closeModal();save();toast('লক্ষ্যমাত্রা সংরক্ষিত')}
 function deleteStaffTarget(tid){if(!requireManagerAction())return;let i=db.staffTargets.findIndex(x=>x.id===tid);if(i<0)return;db.staffTargets.splice(i,1);logActivity('কর্মী লক্ষ্যমাত্রা বাতিল',tid);save();toast('লক্ষ্যমাত্রা বাতিল হয়েছে')}function logsPage(el){let users=['সব',...db.users],rows=db.activityLogs.filter(x=>logFilter==='সব'||x.user===logFilter).slice().reverse().map(x=>`<tr><td>${new Date(x.time).toLocaleString('bn-BD')}</td><td><b>${esc(x.user)}</b></td><td>${esc(x.action)}</td><td>${esc(x.details||'—')}</td></tr>`).join('');el.innerHTML=title('ব্যবহারকারী লগ','প্রতিটি কাজ ব্যবহারকারীর নামে আলাদাভাবে নথিভুক্ত হয়',`<button class="btn secondary" onclick="exportLogs()">লগ ডাউনলোড</button>`)+`<div class="toolbar"><label>ব্যবহারকারী <select onchange="logFilter=this.value;render()">${users.map(u=>`<option ${u===logFilter?'selected':''}>${esc(u)}</option>`).join('')}</select></label></div>`+table(['সময়','ব্যবহারকারী','কাজ','বিস্তারিত'],rows,'এখনও কোনো কাজের লগ নেই')}function exportLogs(){let rows=[['সময়','ব্যবহারকারী','কাজ','বিস্তারিত'],...db.activityLogs.filter(x=>logFilter==='সব'||x.user===logFilter).map(x=>[new Date(x.time).toLocaleString('bn-BD'),x.user,x.action,x.details])];let csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='uttara-shoes-user-logs-'+date()+'.csv';a.click();URL.revokeObjectURL(a.href)}
@@ -693,10 +772,10 @@ function openMaterial(add=false,mid=''){
       '<label>বর্তমান পরিমাণ<input id="mqty" type="number" min="0" step="0.01" value="'+(m?.qty||0)+'" oninput="updateMaterialUnitCost()"></label>'+
       '<label>একক<select id="munit" onchange="materialUnitChanged()">'+options+'</select></label>'+
       '<label>সতর্কসীমা<input id="mmin" type="number" min="0" step="0.01" value="'+(m?.min||0)+'"></label>'+
-      '<label><span id="mcostLabel">একক দাম (প্রতি '+esc(currentUnit)+')</span><input id="mcost" type="number" min="0" step="0.01" value="'+(m?.cost||0)+'" oninput="updateMaterialUnitCost()"></label>'+
+      '<label><span id="mcostLabel">ক্রয়মূল্য (প্রতি '+esc(currentUnit)+')</span><input id="mcost" type="number" min="0" step="0.01" value="'+(m?.cost||0)+'" oninput="updateMaterialUnitCost()"></label>'+
       '<div id="materialYieldFields" style="display:'+(conversion?'contents':'none')+'">'+
         '<label><span id="myieldLabel">প্রতি '+esc(currentUnit)+'-এ উৎপাদন (জোড়া)</span><input id="myield" type="number" min="0.000001" step="0.000001" value="'+(m?.yieldPerUnit||'')+'" oninput="updateMaterialUnitCost()"></label>'+
-        '<label>প্রতি জোড়ার কাঁচামাল খরচ (অটো)<input id="mpaircost" type="number" readonly value="'+(m?.yieldPerUnit>0?(Number(m.cost||0)/Number(m.yieldPerUnit)).toFixed(2):'')+'"></label>'+
+        '<label>প্রকৃত একক মূল্য (প্রতি জোড়া, অটো)<input id="mpaircost" type="number" readonly value="'+(m?.yieldPerUnit>0?(Number(m.cost||0)/Number(m.yieldPerUnit)).toFixed(2):'')+'"></label>'+
         '<label class="wide">বর্তমান মজুতে মোট উৎপাদন (জোড়া, অটো)<input id="mcapacity" type="number" readonly value="'+(m?.yieldPerUnit>0?(Number(m.qty||0)*Number(m.yieldPerUnit)).toLocaleString("en-US",{maximumFractionDigits:3}):'')+'"></label>'+
       '</div>'+
       '<label class="wide">সরবরাহকারী<input id="msupplier" value="'+esc(m?.supplier||'')+'"></label>'
@@ -708,7 +787,7 @@ function openMaterial(add=false,mid=''){
       '<label>পরিশোধের মাধ্যম<select id="buymethod">'+paymentMethodOptions()+'</select></label>';
   modal(add?'কাঁচামাল কেনাকাটা':'কাঁচামাল যোগ / সম্পাদনা',
     '<div class="formgrid">'+form+'</div>'+
-    (!add?'<div class="notice">শীট/রোল/ডর্জন হলে একক দাম হলো পুরো শীট/রোল/ডর্জনের ক্রয়মূল্য। উৎপাদনের পরিমাণ দিলে প্রতি জোড়ার কাঁচামাল খরচ অটো হিসাব হবে। কাঁচামাল কেবল কাঁচামালের তালিকায় থাকবে।</div>':''),
+    (!add?'<div class="notice">শীট/রোল/ডর্জনের ক্ষেত্রে ক্রয়মূল্য শুধু কেনার হিসাবের জন্য। সফটওয়্যার হিসাব করা প্রতি জোড়ার মূল্যকেই প্রকৃত কাঁচামাল একক মূল্য হিসেবে উৎপাদন খরচে ব্যবহার করবে।</div>':''),
     add?"addMaterialStock(val('mid'),num('buyqty'),num('buycost'),val('buysupplier'),num('buypaid'),val('buymethod'))":"saveMaterial('"+String(mid).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+"')");
   if(!add)updateMaterialUnitCost();
 }
@@ -718,7 +797,7 @@ function materialUnitChanged(){
   const box=document.querySelector('#materialYieldFields');
   if(box)box.style.display=special?'contents':'none';
   const label=document.querySelector('#mcostLabel');
-  if(label)label.textContent='একক দাম (প্রতি '+unit+')';
+  if(label)label.textContent='ক্রয়মূল্য (প্রতি '+unit+')';
   const yieldLabel=document.querySelector('#myieldLabel');
   if(yieldLabel)yieldLabel.textContent='প্রতি '+unit+'-এ উৎপাদন (জোড়া)';
   updateMaterialUnitCost();
@@ -753,27 +832,75 @@ function saveMaterial(mid){
 }
 async function addMaterialStock(mid,q,c,s,paid=0,method="নগদ টাকা"){let m=db.materials.find(x=>x.id===mid);if(!m)return;let total=q*c;if(paid<0||paid>total){toast('পরিশোধের পরিমাণ মোট কেনাকাটার বেশি হতে পারবে না');return}try{let purchaseId=id();m.qty+=q;if(Number.isFinite(Number(c)))m.cost=Number(c);m.pairCost=Number(m.yieldPerUnit)>0?Number(m.cost||0)/Number(m.yieldPerUnit):null;m.supplier=s||m.supplier;db.supplierPurchases.push({id:purchaseId,supplier:s,material:m.name,qty:q,unit:m.unit,cost:c,total,paid:0,due:total,date:date(),owner:user(),paymentMethod:"",payments:[]});if(paid>0){const {error}=await window.uttaraSupabase.rpc('uttara_submit_cash_expense',{p_expense_type:'purchase',p_title:(s||'সরবরাহকারী')+' · '+m.name,p_amount:paid,p_method:method,p_destination:'',p_reference:'',p_details:{kind:'supplier_payment',supplier_purchase_id:purchaseId,supplier:s,material:m.name,date:date()}});if(error)throw error;}logActivity('কাঁচামাল কেনাকাটা',s+' · '+m.name+(paid>0?' · পেমেন্ট Pending '+money(paid):''));closeModal();save();toast(paid>0?'কেনাকাটা হয়েছে; পরিশোধ MD Approval-এর অপেক্ষায়':'কেনাকাটা ও সরবরাহকারীর বাকি যোগ হয়েছে')}catch(e){toast(e?.message||String(e))}}
 function openBatch(){modal('নতুন উৎপাদন অর্ডার',`<div class="formgrid"><label>মডেল<input id="bmodel" required placeholder="যেমন: US-101"></label><label>রং<input id="bcolor" required></label><label class="wide">সাইজসমূহ<input id="bsizes" required placeholder="যেমন: ৩৯, ৪০, ৪১, ৪২"></label><label>লক্ষ্যমাত্রা (জোড়া)<input id="btarget" type="number" min="1" required oninput="planCalc()"></label><label>প্রাথমিক বিক্রয় মূল্য<input id="bprice" type="number" min="0"></label><label>শুরুর তারিখ<input id="bdate" type="date" value="${date()}"></label><label class="wide">শ্রম ও অন্যান্য উৎপাদন খরচ (টাকা)<input id="bothercost" type="number" min="0" value="0" oninput="planCalc()"></label></div><section class="panel" style="margin-top:14px"><h2>কাঁচামাল ও আনুমানিক উৎপাদন খরচ</h2><p class="small">প্রতি জোড়ায় যতটুকু কাঁচামাল লাগবে লিখুন। কাঁচামালের হিসাব বর্তমান একক দরে হবে। শ্রম ও অন্যান্য খরচ আলাদা লিখুন।</p><div id="planLines">${materialPlanLine()}</div><button type="button" class="btn secondary" onclick="addMaterialPlanLine()">＋ কাঁচামাল যোগ</button><div class="row"><span>আনুমানিক প্রতি জোড়ার মোট খরচ</span><b id="planUnitCost">৳ ০</b></div><div class="row"><span>পুরো অর্ডারের আনুমানিক খরচ</span><b id="planBatchCost">৳ ০</b></div></section>`,`saveBatch()`)}function materialPlanLine(){
-  let options=db.materials.map(m=>{
+  const options=db.materials.map(m=>{
     const yieldPerUnit=Number(m.yieldPerUnit)||0;
-    const pairCost=yieldPerUnit>0?Number(m.cost||0)/yieldPerUnit:null;
-    const extra=pairCost!==null?' · মূল খরচ '+money(pairCost)+'/জোড়া · ক্রয়-রেফারেন্স '+money(m.cost||0)+'/'+esc(m.unit||'একক'):' · '+money(m.cost||0)+'/'+esc(m.unit||'একক');
-    return '<option value="'+esc(m.id)+'" data-cost="'+(Number(m.cost)||0)+'" data-unit="'+esc(m.unit||'একক')+'" data-yield="'+yieldPerUnit+'">'+
-      esc(m.name)+extra+'</option>';
+    const converted=['শীট','রোল','ডর্জন'].includes(m.unit)&&yieldPerUnit>0;
+    const materialCost=converted?Number(m.cost||0)/yieldPerUnit:Number(m.cost||0);
+    const unitLabel=converted?'জোড়া (সমতুল্য)':(m.unit||'একক');
+    return '<option value="'+esc(m.id)+'" data-cost="'+materialCost+'" data-unit="'+esc(unitLabel)+'" data-yield="'+(converted?yieldPerUnit:0)+'" data-converted="'+(converted?'true':'false')+'">'+
+      esc(m.name)+' · '+money(materialCost)+'/'+esc(unitLabel)+'</option>';
   }).join('');
   return '<div class="lineitem planline"><select class="planmaterial" onchange="planMaterialChanged(this);planCalc()"><option value="">কাঁচামাল নির্বাচন</option>'+options+'</select>'+
-    '<input class="planqty" type="number" min="0" step="0.000001" placeholder="প্রতি জোড়ায় ব্যবহৃত একক" oninput="planCalc()">'+
+    '<input class="planqty" type="number" min="0" step="0.000001" placeholder="প্রতি জোড়ায় প্রয়োজনীয় পরিমাণ" oninput="planCalc()">'+
     '<button type="button" class="del" onclick="this.parentElement.remove();planCalc()">×</button></div>';
 }
 function planMaterialChanged(select){
   const option=select.selectedOptions?.[0],row=select.closest('.planline');
   if(!option||!row)return;
-  const yieldPerUnit=Number(option.dataset.yield)||0;
   const qty=row.querySelector('.planqty');
-  if(yieldPerUnit>0)qty.value=(1/yieldPerUnit).toFixed(6);
-  else qty.value='';
-  qty.title=yieldPerUnit>0?'স্বয়ংক্রিয়: প্রতি জোড়ায় '+(1/yieldPerUnit).toFixed(6)+' '+(option.dataset.unit||'একক')+' লাগবে':'প্রতি জোড়ায় ব্যবহারের পরিমাণ দিন';
+  if(option.dataset.converted==='true'){
+    qty.value='1';
+    qty.title='প্রতি জোড়ার প্রকৃত কাঁচামাল মূল্য অনুযায়ী ১ জোড়া সমতুল্য';
+  }else{
+    qty.value='';
+    qty.title='প্রতি জোড়ায় ব্যবহারের পরিমাণ লিখুন';
+  }
 }
-function addMaterialPlanLine(){document.querySelector('#planLines').insertAdjacentHTML('beforeend',materialPlanLine())}function planCalc(){let materialUnit=[...document.querySelectorAll('.planline')].reduce((a,r)=>{let opt=r.querySelector('.planmaterial').selectedOptions[0];return a+(Number(r.querySelector('.planqty').value)||0)*(Number(opt?.dataset.cost)||0)},0),target=Number(document.querySelector('#btarget')?.value)||0,other=Number(document.querySelector('#bothercost')?.value)||0,unit=materialUnit+(target?other/target:0),total=materialUnit*target+other;let u=document.querySelector('#planUnitCost'),t=document.querySelector('#planBatchCost');if(u)u.textContent=money(unit);if(t)t.textContent=money(total)}function saveBatch(){let plannedMaterials=[...document.querySelectorAll('.planline')].map(r=>{let m=db.materials.find(x=>x.id===r.querySelector('.planmaterial').value);return m?{materialId:m.id,name:m.name,unit:m.unit,perPair:Number(r.querySelector('.planqty').value)||0,unitCost:m.cost||0}:null}).filter(x=>x&&x.perPair>0);let materialUnitCost=plannedMaterials.reduce((a,x)=>a+x.perPair*x.unitCost,0),target=num('btarget'),otherCost=num('bothercost'),unitCost=materialUnitCost+(target?otherCost/target:0);db.batches.push({id:id(),model:val('bmodel'),color:val('bcolor'),sizes:val('bsizes'),target,price:num('bprice'),date:val('bdate')||date(),stage:0,good:target,reject:0,plannedMaterials,materialUnitCost,unitCost,otherCost,batchCost:materialUnitCost*target+otherCost,by:user()});logActivity('উৎপাদন অর্ডার তৈরি',val('bmodel')+' · '+val('bcolor')+' · আনুমানিক খরচ/জোড়া '+money(unitCost));closeModal();save();toast('উৎপাদন অর্ডার ও খরচের পরিকল্পনা সংরক্ষিত হয়েছে')}function openProduct(){modal('তৈরি পণ্য যোগ',`<div class="formgrid"><label>মডেল<input id="pmodel" required></label><label>রং<input id="pcolor"></label><label class="wide">সাইজ<input id="psizes" placeholder="যেমন: ৩৯, ৪০, ৪১"></label><label>মজুত (জোড়া)<input id="pqty" type="number" min="0" value="0"></label><label>উৎপাদন খরচ / জোড়া<input id="pcost" type="number" min="0" placeholder="অজানা হলে খালি রাখুন"></label><label>ডিলার মূল্য (জোড়া)<input id="pdealer" type="number" min="0" value="0"></label><label>পাইকারী মূল্য (জোড়া)<input id="pwholesale" type="number" min="0" value="0"></label><label>খুচরা মূল্য (জোড়া)<input id="pretail" type="number" min="0" value="0"></label></div>`,`saveProduct()`)}function saveProduct(){let enteredCost=val('pcost'),unitCost=enteredCost===''?null:num('pcost'),o={id:id(),model:val('pmodel'),color:val('pcolor'),sizes:val('psizes'),qty:num('pqty'),unitCost,dealerPrice:num('pdealer'),wholesalePrice:num('pwholesale'),retailPrice:num('pretail'),price:num('pretail')};let p=db.products.find(x=>x.model===o.model&&x.color===o.color&&x.sizes===o.sizes);if(p&&!requireManagerAction())return;if(p){let oldQty=Number(p.qty)||0;if(oldQty===0&&o.unitCost!==null)p.unitCost=o.unitCost;else if(o.unitCost!==null&&p.unitCost!=null&&Number.isFinite(Number(p.unitCost)))p.unitCost=(Number(p.unitCost)*oldQty+o.unitCost*o.qty)/(oldQty+o.qty);else if(o.qty>0)p.unitCost=null;p.qty+=o.qty;p.dealerPrice=o.dealerPrice;p.wholesalePrice=o.wholesalePrice;p.retailPrice=o.retailPrice;p.price=o.retailPrice}else db.products.push(o);logActivity('তৈরি পণ্যের মজুত যোগ',o.model+' · '+o.qty+' জোড়া');closeModal();save();toast('তৈরি পণ্যের মজুত যোগ হয়েছে')}function adjustProduct(pid){if(!requireManagerAction())return;let p=db.products.find(x=>x.id===pid);modal('পণ্যের মজুত সমন্বয়',`<p>${esc(p.model)} · ${esc(p.color)} · ${esc(p.sizes)}</p><label>নতুন মজুত (জোড়া)<input id="newqty" type="number" min="0" value="${p.qty}"></label>`,`db.products.find(x=>x.id==='${pid}').qty=num('newqty');logActivity('পণ্যের মজুত সমন্বয়',p.model+' · '+num('newqty')+' জোড়া');closeModal();save()`)}
+function addMaterialPlanLine(){document.querySelector('#planLines').insertAdjacentHTML('beforeend',materialPlanLine())}
+function planCalc(){
+  const materialUnit=[...document.querySelectorAll('.planline')].reduce((sum,row)=>{
+    const option=row.querySelector('.planmaterial').selectedOptions[0];
+    return sum+(Number(row.querySelector('.planqty').value)||0)*(Number(option?.dataset.cost)||0);
+  },0);
+  const target=Number(document.querySelector('#btarget')?.value)||0;
+  const other=Number(document.querySelector('#bothercost')?.value)||0;
+  const unit=materialUnit+(target?other/target:0);
+  const total=materialUnit*target+other;
+  const unitNode=document.querySelector('#planUnitCost'),totalNode=document.querySelector('#planBatchCost');
+  if(unitNode)unitNode.textContent=money(unit);
+  if(totalNode)totalNode.textContent=money(total);
+}
+function saveBatch(){
+  const plannedMaterials=[...document.querySelectorAll('.planline')].map(row=>{
+    const option=row.querySelector('.planmaterial').selectedOptions[0];
+    const m=db.materials.find(x=>x.id===row.querySelector('.planmaterial').value);
+    if(!m||!option)return null;
+    const converted=option.dataset.converted==='true';
+    return {
+      materialId:m.id,
+      name:m.name,
+      unit:option.dataset.unit||m.unit,
+      sourceUnit:m.unit,
+      perPair:Number(row.querySelector('.planqty').value)||0,
+      unitCost:Number(option.dataset.cost)||0,
+      yieldPerUnit:Number(m.yieldPerUnit)||null,
+      convertedToPairs:converted
+    };
+  }).filter(x=>x&&x.perPair>0);
+  const materialUnitCost=plannedMaterials.reduce((sum,x)=>sum+x.perPair*x.unitCost,0);
+  const target=num('btarget'),otherCost=num('bothercost');
+  const unitCost=materialUnitCost+(target?otherCost/target:0);
+  db.batches.push({
+    id:id(),model:val('bmodel'),color:val('bcolor'),sizes:val('bsizes'),target,
+    price:num('bprice'),date:val('bdate')||date(),stage:0,good:target,reject:0,
+    plannedMaterials,materialUnitCost,unitCost,otherCost,
+    batchCost:materialUnitCost*target+otherCost,by:user()
+  });
+  logActivity('উৎপাদন অর্ডার তৈরি',val('bmodel')+' · '+val('bcolor')+' · আনুমানিক খরচ/জোড়া '+money(unitCost));
+  closeModal();save();toast('উৎপাদন অর্ডার ও খরচের পরিকল্পনা সংরক্ষিত হয়েছে');
+}
+
+function openProduct(){modal('তৈরি পণ্য যোগ',`<div class="formgrid"><label>মডেল<input id="pmodel" required></label><label>রং<input id="pcolor"></label><label class="wide">সাইজ<input id="psizes" placeholder="যেমন: ৩৯, ৪০, ৪১"></label><label>মজুত (জোড়া)<input id="pqty" type="number" min="0" value="0"></label><label>উৎপাদন খরচ / জোড়া<input id="pcost" type="number" min="0" placeholder="অজানা হলে খালি রাখুন"></label><label>ডিলার মূল্য (জোড়া)<input id="pdealer" type="number" min="0" value="0"></label><label>পাইকারী মূল্য (জোড়া)<input id="pwholesale" type="number" min="0" value="0"></label><label>খুচরা মূল্য (জোড়া)<input id="pretail" type="number" min="0" value="0"></label></div>`,`saveProduct()`)}function saveProduct(){let enteredCost=val('pcost'),unitCost=enteredCost===''?null:num('pcost'),o={id:id(),model:val('pmodel'),color:val('pcolor'),sizes:val('psizes'),qty:num('pqty'),unitCost,dealerPrice:num('pdealer'),wholesalePrice:num('pwholesale'),retailPrice:num('pretail'),price:num('pretail')};let p=db.products.find(x=>x.model===o.model&&x.color===o.color&&x.sizes===o.sizes);if(p&&!requireManagerAction())return;if(p){let oldQty=Number(p.qty)||0;if(oldQty===0&&o.unitCost!==null)p.unitCost=o.unitCost;else if(o.unitCost!==null&&p.unitCost!=null&&Number.isFinite(Number(p.unitCost)))p.unitCost=(Number(p.unitCost)*oldQty+o.unitCost*o.qty)/(oldQty+o.qty);else if(o.qty>0)p.unitCost=null;p.qty+=o.qty;p.dealerPrice=o.dealerPrice;p.wholesalePrice=o.wholesalePrice;p.retailPrice=o.retailPrice;p.price=o.retailPrice}else db.products.push(o);logActivity('তৈরি পণ্যের মজুত যোগ',o.model+' · '+o.qty+' জোড়া');closeModal();save();toast('তৈরি পণ্যের মজুত যোগ হয়েছে')}function adjustProduct(pid){if(!requireManagerAction())return;let p=db.products.find(x=>x.id===pid);modal('পণ্যের মজুত সমন্বয়',`<p>${esc(p.model)} · ${esc(p.color)} · ${esc(p.sizes)}</p><label>নতুন মজুত (জোড়া)<input id="newqty" type="number" min="0" value="${p.qty}"></label>`,`db.products.find(x=>x.id==='${pid}').qty=num('newqty');logActivity('পণ্যের মজুত সমন্বয়',p.model+' · '+num('newqty')+' জোড়া');closeModal();save()`)}
 function editProduct(pid){
   if(!requireManagerAction())return;
   let p=db.products.find(x=>x.id===pid);if(!p)return;
