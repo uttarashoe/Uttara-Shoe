@@ -70,7 +70,7 @@
         return undefined;
       }
     };
-  });
+  };
 
   const originalSave = window.save;
   wrap('save', 'সাধারণ তথ্য সংযোজন/বিয়োজন/পরিবর্তন', originalSave);
