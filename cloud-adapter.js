@@ -193,7 +193,8 @@
   window.cloudSignUpForm = function () {
     const root = document.querySelector('#modalroot');
     if (!root) return;
-    root.innerHTML = `<div class="overlay"><div class="modal" style="width:min(440px,100%);padding:28px;border-radius:18px">
+    root.innerHTML = `<div class="overlay"><div class="modal" style="position:relative;width:min(440px,100%);padding:28px;border-radius:18px">
+      <button type="button" aria-label="লগইনে ফিরে যান" title="লগইনে ফিরে যান" onclick="window.showAuth()" style="position:absolute;top:10px;right:12px;width:38px;height:38px;border:0;border-radius:50%;background:#e8f0ed;color:#164b40;font-size:26px;line-height:1;cursor:pointer;display:grid;place-items:center;z-index:2">×</button>
       <div style="text-align:center;margin-bottom:20px">
         <div style="font-size:24px;font-weight:800">নতুন অ্যাকাউন্টের আবেদন</div>
         <div class="small">পরিচালক অনুমোদনের পর অ্যাকাউন্ট চালু হবে</div>
@@ -217,7 +218,7 @@
         </label>
         <button class="btn" type="submit" style="width:100%;min-height:44px">আবেদন জমা দিন</button>
       </form>
-      <button type="button" class="btn secondary" onclick="buildAuth()" style="width:100%;margin-top:8px">লগইনে ফিরে যান</button>
+      <button type="button" class="btn secondary" onclick="window.showAuth()" style="width:100%;margin-top:8px">লগইনে ফিরে যান</button>
     </div></div>`;
   };
 
