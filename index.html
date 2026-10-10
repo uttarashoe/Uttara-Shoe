@@ -955,7 +955,7 @@ function paymentMethodOptions(){return '<option>নগদ টাকা</option><
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='uttara-shoes-backup-'+date()+'.json';a.click();URL.revokeObjectURL(a.href);toast('ব্যাকআপ ফাইল ডাউনলোড হয়েছে')}function mergeBackupRecords(current=[],previous=[]){let merged=new Map();for(let row of previous||[]){let key=row?.id?String(row.id):JSON.stringify(row);merged.set(key,row)}for(let row of current||[]){let key=row?.id?String(row.id):JSON.stringify(row);merged.set(key,row)}return [...merged.values()]}function importData(file){let r=new FileReader();r.onload=()=>{try{let old=JSON.parse(r.result);if(!old||typeof old!=='object'||!old.materials||!old.sales)throw 0;let current=db,next={...defaults,...old,...current};Object.keys(defaults).filter(k=>Array.isArray(defaults[k])).forEach(k=>{next[k]=mergeBackupRecords(current[k],old[k])});next.access={...(old.access||{}),...(current.access||{})};next.dealers=(next.dealers||[]).map(v=>({...v,owner:v.owner||'ব্যবস্থাপক',type:v.type||'ডিলার',previousDue:Number(v.previousDue)||0}));next.products=(next.products||[]).map(p=>({...p,dealerPrice:Number(p.dealerPrice??p.price)||0,wholesalePrice:Number(p.wholesalePrice??p.price)||0,retailPrice:Number(p.retailPrice??p.price)||0}));db=next;save();toast('ব্যাকআপের আগের ডেটা বর্তমান ডেটার সঙ্গে যুক্ত হয়েছে')}catch{toast('এই ব্যাকআপ ফাইলটি পড়া যায়নি')}};r.readAsText(file)}document.querySelector('#nav').addEventListener('click',e=>{let b=e.target.closest('[data-page]');if(b)setPage(b.dataset.page)});document.querySelector('#exportBtn').addEventListener('click',exportData);document.querySelector('#importBtn').addEventListener('click',()=>document.querySelector('#restoreFile').click());document.querySelector('#exportBtn').addEventListener('contextmenu',e=>{e.preventDefault();document.querySelector('#restoreFile').click()});document.body.insertAdjacentHTML('beforeend','<input id="restoreFile" type="file" accept="application/json" class="hidden">');document.querySelector('#restoreFile').addEventListener('change',e=>e.target.files[0]&&importData(e.target.files[0]));document.querySelector("#printBrandImg").src=document.querySelector(".brand-mark").src;showAuth();
 </script><script>
 (function () {
-  const duties = [
+  const defaultDuties = [
     ['নির্ধারিত এলাকার দোকান পরিদর্শন', 'নিজের দায়িত্বে থাকা এলাকার জুতার দোকান নিয়মিত ভিজিট করে সম্পর্ক বজায় রাখা এবং দোকানের চাহিদা জানা।'],
     ['নতুন retailer ও dealer তৈরি', 'সম্ভাবনাময় নতুন খুচরা বিক্রেতা ও ডিলার খুঁজে বের করে পরিচিতি, যোগাযোগের তথ্য এবং ব্যবসার প্রয়োজন সংগ্রহ করা।'],
     ['অর্ডার সংগ্রহ', 'দোকানদারের চাহিদা অনুযায়ী মডেল, সাইজ, রং ও পরিমাণ নিশ্চিত করে অর্ডার সংগ্রহ এবং সফটওয়্যারে সঠিকভাবে নথিভুক্ত করা।'],
@@ -966,6 +966,7 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
     ['অনুমোদিত মূল্য ও ছাড় মেনে চলা', 'কোম্পানির অনুমোদিত মূল্যতালিকা ও ডিসকাউন্ট নীতি অনুসরণ করা। অনুমোদনের বাইরে কোনো দামে বিক্রি বা ছাড় দেওয়া যাবে না।'],
     ['কোম্পানির টাকা ও পণ্যের হিসাব জমা', 'নিজের কাছে কোম্পানির কোনো টাকা, পণ্য বা নথি থাকলে তার পূর্ণ হিসাবসহ নির্ধারিত নিয়মে জমা দেওয়া এবং জমার প্রমাণ সংরক্ষণ করা।']
   ];
+  db.srDuties = Array.isArray(db.srDuties) ? db.srDuties : defaultDuties.map(([name, detail]) => ({ name, detail }));
 
   const originalPageNames = pageNames;
   const originalAllowedPages = allowedPages;
@@ -989,6 +990,28 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
     if (page === pageKey) return !!db.access[user()]?.sr || !!db.access[user()]?.manager;
     return originalCanAccess(page);
   };
+  window.saveSrDuty = function () {
+    if (!isManager()) return toast('শুধু ব্যবস্থাপনা পরিচালক দায়িত্ব সংযোজন করতে পারবেন');
+    const name = document.querySelector('#srDutyName')?.value.trim() || '';
+    const detail = document.querySelector('#srDutyDetail')?.value.trim() || '';
+    if (!name || !detail) return toast('দায়িত্বের নাম ও বিবরণ লিখুন');
+    db.srDuties = db.srDuties || [];
+    db.srDuties.push({ name, detail, createdAt: new Date().toISOString(), createdBy: user() });
+    if (typeof logActivity === 'function') logActivity('এসআর দায়িত্ব সংযোজন', name);
+    save(); toast('এসআর-এর দায়িত্ব সংযোজন হয়েছে'); render();
+  };
+  window.removeSrDuty = function (index) {
+    if (!isManager()) return toast('শুধু ব্যবস্থাপনা পরিচালক দায়িত্ব বিয়োজন করতে পারবেন');
+    const duties = db.srDuties || [];
+    if (!Number.isInteger(index) || index < 0 || index >= duties.length) return toast('দায়িত্বটি পাওয়া যায়নি');
+    const removed = duties[index];
+    if (!confirm('এই এসআর দায়িত্বটি বিয়োজন করবেন?')) return;
+    duties.splice(index, 1);
+    db.srDuties = duties;
+    if (typeof logActivity === 'function') logActivity('এসআর দায়িত্ব বিয়োজন', removed.name || '');
+    save(); toast('এসআর-এর দায়িত্ব বিয়োজন হয়েছে'); render();
+  };
+
   window.saveSrVisit = function () {
     const shop = document.querySelector('#srShop').value.trim();
     if (!shop) return toast('দোকানের নাম লিখুন');
@@ -1032,9 +1055,14 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
         <label class="wide">পরবর্তী ফলোআপ<input id="srFollowup"></label>
       </div><div class="actions"><button class="btn" type="button" onclick="saveSrVisit()">রিপোর্ট জমা দিন</button></div></div>
       <h2 style="margin:22px 0 12px">${isManager() ? 'ভিজিট রিপোর্ট' : 'আমার ভিজিট রিপোর্ট'}</h2>${table(['তারিখ','দোকান / এলাকা','এসআর','আলোচনা','অর্ডার','আদায়','বাজারতথ্য','ফলোআপ'], rows, 'এখনও কোনো ভিজিট রিপোর্ট জমা হয়নি')}
-      <h2 style="margin:24px 0 12px">এসআর-এর দায়িত্ব</h2><div class="panel">${duties.map(([name, detail], i) =>
-        `<div class="row" style="align-items:flex-start;gap:18px"><b style="min-width:220px">${i + 1}. ${name}</b><span>${detail}</span></div>`
-      ).join('')}</div>`;
+      <h2 style="margin:24px 0 12px">এসআর-এর দায়িত্ব</h2>
+      ${isManager() ? `<div class="panel"><h3>দায়িত্ব সংযোজন</h3><div class="formgrid">
+        <label>দায়িত্বের নাম<input id="srDutyName" placeholder="যেমন: নতুন ডিলার তৈরি"></label>
+        <label class="wide">দায়িত্বের বিবরণ<input id="srDutyDetail" placeholder="দায়িত্বের বিস্তারিত লিখুন"></label>
+      </div><div class="actions"><button class="btn" type="button" onclick="saveSrDuty()">দায়িত্ব যোগ করুন</button></div></div>` : ''}
+      <div class="panel">${(db.srDuties || []).map((duty, i) =>
+        `<div class="row" style="align-items:flex-start;gap:18px;border-bottom:1px solid var(--line);padding:10px 0"><b style="min-width:220px">${i + 1}. ${esc(duty.name || '')}</b><span style="flex:1">${esc(duty.detail || '')}</span>${isManager() ? `<button class="btn secondary" type="button" onclick="removeSrDuty(${i})">বিয়োজন</button>` : ''}</div>`
+      ).join('') || '<p>এখনও কোনো দায়িত্ব যোগ করা হয়নি।</p>'}</div>`;
   };
   window.render = function () {
     if (page === doPadKey) {
