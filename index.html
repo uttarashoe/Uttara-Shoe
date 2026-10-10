@@ -1058,7 +1058,7 @@ function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'appli
       <h2 style="margin:24px 0 12px">এসআর-এর দায়িত্ব</h2>
       ${isManager() ? `<div class="panel"><h3>দায়িত্ব সংযোজন</h3><div class="formgrid">
         <label>দায়িত্বের নাম<input id="srDutyName" placeholder="যেমন: নতুন ডিলার তৈরি"></label>
-        <label class="wide">দায়িত্বের বিবরণ<input id="srDutyDetail" placeholder="দায়িত্বের বিস্তারিত লিখুন"></label>
+        <label class="wide">দায়িত্বের বিবরণ<textarea id="srDutyDetail" rows="5" placeholder="দায়িত্বের বিস্তারিত লিখুন" style="width:100%;min-height:130px;resize:vertical;box-sizing:border-box"></textarea></label>
       </div><div class="actions"><button class="btn" type="button" onclick="saveSrDuty()">দায়িত্ব যোগ করুন</button></div></div>` : ''}
       <div class="panel">${(db.srDuties || []).map((duty, i) =>
         `<div class="row" style="align-items:flex-start;gap:18px;border-bottom:1px solid var(--line);padding:10px 0"><b style="min-width:220px">${i + 1}. ${esc(duty.name || '')}</b><span style="flex:1">${esc(duty.detail || '')}</span>${isManager() ? `<button class="btn secondary" type="button" onclick="removeSrDuty(${i})">বিয়োজন</button>` : ''}</div>`
