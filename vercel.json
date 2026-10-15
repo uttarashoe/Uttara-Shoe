@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/api/protected-page" },
+    { "source": "/index.html", "destination": "/api/protected-page" }
+  ],
+  "functions": {
+    "api/protected-page.js": {
+      "includeFiles": "index.html"
+    }
+  }
+}
