@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#123a32">
+<meta name="robots" content="noindex,nofollow">
+<title>Uttara Shoe | প্রবেশ করুন</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at top right,#2b6854,#102b25 60%);font-family:system-ui,"Noto Sans Bengali",sans-serif;color:#173a30}.shell{width:min(440px,100%);background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 24px 80px #0005}.hero{padding:28px 26px 22px;text-align:center;color:#fff;background:#123a32}.hero img{width:100%;height:170px;object-fit:cover;border-radius:15px;margin-bottom:18px;background:#244e42}.hero h1{margin:0;font-size:27px;letter-spacing:1px}.hero p{margin:8px 0 0;color:#d6e8df}.form{padding:26px}.form h2{font-size:20px;text-align:center;margin:0 0 8px}.sub{text-align:center;color:#6d7c75;font-size:13px;margin:0 0 22px}.form label{display:block;font-weight:650;font-size:14px;margin-bottom:8px}.form input{width:100%;border:1px solid #cbd8d1;border-radius:11px;padding:13px 14px;font:inherit;font-size:16px;outline:none}.form input:focus{border-color:#247456;box-shadow:0 0 0 3px #24745622}.form button{width:100%;margin-top:15px;border:0;border-radius:11px;padding:13px;background:#174b3f;color:#fff;font:inherit;font-weight:750;font-size:16px;cursor:pointer}.form button:disabled{opacity:.65;cursor:wait}.message{min-height:22px;margin:12px 0 0;text-align:center;font-size:13px;color:#a33b32}.foot{text-align:center;color:#7c8b83;font-size:11px;padding:0 24px 22px}@media(max-width:420px){.hero img{height:145px}.hero{padding:22px 20px 18px}.form{padding:22px}}
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="hero">
+    <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85" alt="জুতার ছবি">
+    <h1>UTTARA SHOE</h1>
+    <p>ব্যবস্থাপনা সফটওয়্যার</p>
+  </section>
+  <form class="form" id="coverForm">
+    <h2>সফটওয়্যারে প্রবেশ করুন</h2>
+    <p class="sub">প্রবেশের জন্য কভার পাসওয়ার্ড লিখুন</p>
+    <label for="coverPassword">কভার পাসওয়ার্ড</label>
+    <input id="coverPassword" type="password" autocomplete="current-password" required autofocus>
+    <button id="submitButton" type="submit">প্রবেশ করুন</button>
+    <p class="message" id="message" role="status" aria-live="polite"></p>
+  </form>
+  <div class="foot">কভার পাসওয়ার্ডের পর নিজস্ব অ্যাকাউন্টে লগইন করতে হবে।</div>
+</main>
+<script>
+const form = document.getElementById('coverForm');
+const input = document.getElementById('coverPassword');
+const button = document.getElementById('submitButton');
+const message = document.getElementById('message');
+if (new URLSearchParams(location.search).has('expired')) message.textContent = '৩০ মিনিট নিষ্ক্রিয় থাকার কারণে আবার পাসওয়ার্ড দিন।';
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  button.disabled = true;
+  message.textContent = 'যাচাই হচ্ছে…';
+  try {
+    const response = await fetch('/api/cover-auth', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input.value }),
+      cache: 'no-store'
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'পাসওয়ার্ড যাচাই করা যায়নি।');
+    location.replace('/');
+  } catch (error) {
+    message.textContent = error.message || 'সংযোগ সমস্যা। আবার চেষ্টা করুন।';
+    input.select();
+  } finally {
+    button.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
