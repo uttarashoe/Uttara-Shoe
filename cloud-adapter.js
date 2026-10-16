@@ -501,7 +501,8 @@ const enterApp = async authUser => {
       el.querySelector('#paymentLedgerBox').innerHTML = '<span class="danger">'+esc(normalizeError(error))+'</span>';
       return;
     }
-    const rows = data || [];
+    const allRows = data || [];
+    const rows = allRows.filter(p=>inAccountingDateRange({date:String(p.created_at||'').slice(0,10)},'paymentLedger'));
     const total = rows.reduce((a,p)=>a+Number(p.amount||0),0);
     const approved = rows.filter(p=>p.status==='approved').reduce((a,p)=>a+Number(p.amount||0),0);
     const pending = rows.filter(p=>p.status==='pending').reduce((a,p)=>a+Number(p.amount||0),0);
@@ -525,7 +526,7 @@ const enterApp = async authUser => {
       '<div class="card"><div class="metric">MD অনুমোদিত</div><div class="value">'+money(approved)+'</div></div>'+
       '<div class="card"><div class="metric">অপেক্ষমাণ</div><div class="value">'+money(pending)+'</div></div>'+
       '<div class="card"><div class="metric">বাতিল</div><div class="value">'+money(rejected)+'</div></div></div>'+
-      '<div class="toolbar"><label>স্ট্যাটাস <select onchange="paymentLedgerStatus=this.value;render()">'+
+      '<div class="toolbar">'+accountingDateRange('paymentLedger')+'</div><div class="toolbar"><label>স্ট্যাটাস <select onchange="paymentLedgerStatus=this.value;render()">'+
       '<option value="" '+(!status?'selected':'')+'>সব</option><option value="pending" '+(status==='pending'?'selected':'')+'>অপেক্ষমাণ</option><option value="approved" '+(status==='approved'?'selected':'')+'>অনুমোদিত</option><option value="rejected" '+(status==='rejected'?'selected':'')+'>বাতিল</option></select></label></div>'+
       table(['তারিখ/সময়','চালান / ডিলার','টাকার পরিমাণ','মাধ্যম','জমা হয়েছে কোথায়','Entry / গ্রহণকারী','MD অবস্থা','অনুমোদনকারী','রেফারেন্স / নোট'],tableRows,'কোনো জমার হিসাব পাওয়া যায়নি');
   };
@@ -537,7 +538,7 @@ const enterApp = async authUser => {
       return;
     }
     el.innerHTML = title('জমা-খরচ স্প্রেডশিট','জমা ও খরচের হিসাব আলাদা শিটে—জমার মতোই সম্পূর্ণ খরচের তালিকা, অনুমোদনের অবস্থা ও Excel ডাউনলোড।') +
-      '<div class="toolbar"><button class="btn" onclick="downloadCashLedgerCsv(\'deposits\')">জমার শিট Excel ডাউনলোড</button><button class="btn secondary" onclick="downloadCashLedgerCsv(\'expenses\')">খরচের শিট Excel ডাউনলোড</button><button class="btn secondary" onclick="window.print()">প্রিন্ট</button></div>' +
+      '<div class="toolbar">'+accountingDateRange('cashLedgerSheet')+'</div><div class="toolbar"><button class="btn" onclick="downloadCashLedgerCsv(\'deposits\')">জমার শিট Excel ডাউনলোড</button><button class="btn secondary" onclick="downloadCashLedgerCsv(\'expenses\')">খরচের শিট Excel ডাউনলোড</button><button class="btn secondary" onclick="window.print()">প্রিন্ট</button></div>' +
       '<div id="cashLedgerSpreadsheetBox" class="notice">হিসাব আনা হচ্ছে…</div>';
     try {
       const [{data:depositRaw,error:dErr},{data:expenseRaw,error:eErr},{data:balance,error:bErr}] = await Promise.all([
@@ -549,8 +550,10 @@ const enterApp = async authUser => {
       if (eErr) throw eErr;
       if (bErr) throw bErr;
 
-      const deposits = Array.isArray(depositRaw) ? depositRaw : [];
-      const expenses = Array.isArray(expenseRaw) ? expenseRaw : (Array.isArray(expenseRaw?.[0]) ? expenseRaw[0] : (expenseRaw?.[0]?.jsonb_agg || []));
+      const depositsAll = Array.isArray(depositRaw) ? depositRaw : [];
+      const deposits = depositsAll.filter(x=>inAccountingDateRange({date:String(x.created_at||'').slice(0,10)},'cashLedgerSheet'));
+      const expensesAll = Array.isArray(expenseRaw) ? expenseRaw : (Array.isArray(expenseRaw?.[0]) ? expenseRaw[0] : (expenseRaw?.[0]?.jsonb_agg || []));
+      const expenses = expensesAll.filter(x=>inAccountingDateRange({date:String(x.created_at||'').slice(0,10)},'cashLedgerSheet'));
       window._cashLedgerSpreadsheetData = {deposits, expenses, balance:Number(balance||0)};
 
       const sumAmount = rows => rows.reduce((sum,row)=>sum+Number(row.amount||0),0);
@@ -651,15 +654,17 @@ const enterApp = async authUser => {
       if(pErr) throw pErr;
       if(bErr) throw bErr;
       const pending = Array.isArray(pendingRaw) ? pendingRaw : (Array.isArray(pendingRaw?.[0]) ? pendingRaw[0] : (pendingRaw?.[0]?.jsonb_agg || pendingRaw || []));
-      const rows=(pending||[]).map(x=>'<tr>'+
+      const filteredPending=(pending||[]).filter(x=>inAccountingDateRange({date:String(x.created_at||'').slice(0,10)},'cashExpenses'));
+      const rows=filteredPending.map(x=>'<tr>'+
         '<td>'+new Date(x.created_at).toLocaleString('bn-BD')+'</td>'+
         '<td>'+esc(x.expense_type==='purchase'?'ক্রয়':x.expense_type==='salary'?'বেতন':'অন্যান্য')+'</td>'+
         '<td>'+esc(x.title||'—')+'</td><td><b>'+money(x.amount)+'</b></td>'+
         '<td>'+esc(x.method||'—')+'</td><td>'+esc(x.requested_by_name||'—')+'</td>'+
         '<td><button class="btn" onclick="reviewCashExpense(\''+x.id+'\',\'approved\')">Approve</button> <button class="btn secondary" onclick="reviewCashExpense(\''+x.id+'\',\'rejected\')">Reject</button></td></tr>').join('');
       el.querySelector('#cashExpenseBox').outerHTML =
+        '<div class="toolbar">'+accountingDateRange('cashExpenses')+'</div>'+
         '<div class="cards"><div class="card"><div class="metric">বর্তমান জমা টাকা</div><div class="value">'+money(balance||0)+'</div><div class="small">শুধু MD-approved জমা − approved খরচ</div></div>'+
-        '<div class="card"><div class="metric">Pending খরচ</div><div class="value">'+money((pending||[]).reduce((a,x)=>a+Number(x.amount||0),0))+'</div></div></div>'+
+        '<div class="card"><div class="metric">Pending খরচ</div><div class="value">'+money(filteredPending.reduce((a,x)=>a+Number(x.amount||0),0))+'</div></div></div>'+
         table(['তারিখ','ধরন','খরচের বিবরণ','পরিমাণ','মাধ্যম','Entry করেছে','MD অনুমোদন'],rows,'কোনো Pending খরচ নেই');
     } catch(error) {
       el.querySelector('#cashExpenseBox').innerHTML='<span class="danger">'+esc(normalizeError(error))+'</span>';
