@@ -321,15 +321,15 @@ function sendPayrollSms(name,month,amount){
 }
 function financePage(el){
   if(!isManager()){el.innerHTML=title('অনুমতি প্রয়োজন','এই হিসাব শুধু ব্যবস্থাপনা পরিচালকের জন্য।');return}
-  const tx=db.capitalTransactions||[];
+  const tx=(db.capitalTransactions||[]).filter(x=>inAccountingDateRange(x,'finance'));
   const amountOf=x=>Number(x?.amount??x?.total??x?.paid??x?.netPay??x?.salary??0)||0;
-  const saleRows=db.sales||[];
+  const saleRows=(db.sales||[]).filter(x=>inAccountingDateRange(x,'finance'));
   const knownSalesRows=saleRows.filter(s=>s.costTotal!=null);
   const sales=knownSalesRows.reduce((a,s)=>a+Number(s.total||0),0);
   const cogs=saleRows.filter(s=>s.costTotal!=null).reduce((a,s)=>a+Number(s.costTotal||0),0);
   const gross=sales-cogs;
-  const salaries=(db.employeePayments||[]).filter(p=>p.approvalStatus!=='pending' && p.approvalStatus!=='rejected').reduce((a,p)=>a+amountOf(p),0);
-  const expenses=(db.expenses||[]).filter(p=>p.approvalStatus!=='pending' && p.approvalStatus!=='rejected').reduce((a,p)=>a+amountOf(p),0);
+  const salaries=(db.employeePayments||[]).filter(p=>inAccountingDateRange(p,'finance')&&p.approvalStatus!=='pending' && p.approvalStatus!=='rejected').reduce((a,p)=>a+amountOf(p),0);
+  const expenses=(db.expenses||[]).filter(p=>inAccountingDateRange(p,'finance')&&p.approvalStatus!=='pending' && p.approvalStatus!=='rejected').reduce((a,p)=>a+amountOf(p),0);
   const netProfit=gross-salaries-expenses;
   const primary=tx.filter(x=>x.type==='opening').reduce((a,x)=>a+amountOf(x),0);
   const additions=tx.filter(x=>x.type==='contribution').reduce((a,x)=>a+amountOf(x),0);
@@ -338,7 +338,7 @@ function financePage(el){
   const knownProfitSales=knownSalesRows.length;
   const rows=tx.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).map(x=>`<tr><td>${fmtDate(x.date)}</td><td>${esc(x.type==='opening'?'প্রাথমিক মূলধন':x.type==='contribution'?'নতুন মূলধন সংযোজন':'মূলধন উত্তোলন')}</td><td>${money(amountOf(x))}</td><td>${esc(x.note||'')}</td><td><button class="btn secondary" onclick="deleteCapitalTransaction('${esc(x.id)}')">মুছুন</button></td></tr>`).join('');
   el.innerHTML=title('মূলধন ও লাভ/ক্ষতি','বিক্রি, পণ্যের বিক্রিত খরচ, বেতন ও অন্যান্য খরচ থেকে স্বয়ংক্রিয় হিসাব; মূলধন সংযোজন ও উত্তোলন আলাদাভাবে নথিভুক্ত করুন.',btn('＋ মূলধন লেনদেন','openCapitalTransaction()')+' '+btn('＋ বেতন প্রদান','openSalaryPayment()')+' '+btn('＋ অন্যান্য খরচ','openOtherExpense()'))+
-  `<div class="cards">
+  `<div class="toolbar">${accountingDateRange('finance')}</div><div class="cards">
     <div class="card"><div class="metric">প্রাথমিক মূলধন</div><div class="value">${money(primary)}</div><div class="small">প্রারম্ভিক ব্যবসায়িক মূলধন</div></div>
     <div class="card"><div class="metric">নতুন মূলধন</div><div class="value">${money(additions)}</div><div class="small">পরবর্তীতে মালিকের সংযোজন</div></div>
     <div class="card"><div class="metric">মোট উত্তোলন</div><div class="value">${money(withdrawals)}</div><div class="small">মালিকের ব্যক্তিগত/অন্যান্য উত্তোলন</div></div>
@@ -714,7 +714,7 @@ function storeInOutPage(el){
   const current=window.uttaraCurrentMember||{};
   const manager=isManager();
   const products=(db.products||[]).slice().sort((a,b)=>String(a.model||'').localeCompare(String(b.model||''),'bn'));
-  const transactions=(db.storeTransactions||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+  const transactions=(db.storeTransactions||[]).filter(t=>inAccountingDateRange({date:t.date||String(t.createdAt||'').slice(0,10)},'storeInOut')).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
   const actions=(manager?btn('＋ নতুন পণ্য','openProduct()')+' ':'')+btn('＋ স্টোর ইন/আউট এন্ট্রি','openStoreMoveForm()');
   const productRows=products.map(p=>{
     const tools=manager
@@ -742,7 +742,7 @@ function storeInOutPage(el){
     '<td>'+esc(t.entryUserPhone||'—')+'</td><td>'+esc(t.comments||'—')+'</td></tr>').join('');
   const stockPairs=products.reduce((sum,p)=>sum+(Number(p.qty)||0),0);
   el.innerHTML=title('স্টোর ইন/আউট','তৈরি পণ্যের স্টক, মাল গ্রহণ/বের করা এবং এন্ট্রিদাতার পরিচয়',actions)+
-    '<div class="cards">'+
+    '<div class="toolbar">'+accountingDateRange('storeInOut')+'</div>'+'<div class="cards">'+
       '<div class="card"><div class="metric">পণ্যের ভ্যারিয়েন্ট</div><div class="value">'+bn(products.length)+'</div></div>'+
       '<div class="card"><div class="metric">বর্তমান মোট মজুত</div><div class="value">'+bn(stockPairs)+' জোড়া</div></div>'+
       '<div class="card"><div class="metric">ইন/আউট এন্ট্রি</div><div class="value">'+bn(transactions.length)+'</div></div>'+
