@@ -180,7 +180,7 @@ function productionPage(el){
       '<div class="small">পরিকল্পনা: '+((b.plannedMaterials||[]).map(x=>esc(x.name)+' '+bn(x.perPair)+' '+esc(x.unit)).join(' · ')||'নেই')+'</div></td></tr>';
   }).join('');
   el.innerHTML=title('উৎপাদন','উৎপাদন অর্ডার ও ধাপভিত্তিক অগ্রগতি',btn('＋ উৎপাদন অর্ডার','openBatch()'))+
-    '<div class="notice">প্যাকিং ধাপ সম্পন্ন হলে “তৈরী সম্পন্ন” চাপুন। তখন ভালো জোড়ার পরিমাণ ও উৎপাদন খরচ হিসাব করে পণ্যটি “তৈরি পণ্য” মজুতে যোগ হবে। একবার যোগ হলে পুনরায় যোগ করা যাবে না।</div>'+
+    '<div class="notice">উৎপাদন অর্ডারে প্রতি জোড়ায় প্রয়োজনীয় কাঁচামাল নির্ধারণ করুন। প্যাকিং ধাপ সম্পন্ন করে “তৈরী সম্পন্ন” চাপলে কাঁচামাল স্বয়ংক্রিয়ভাবে মজুত থেকে কমবে এবং তৈরি পণ্য মজুতে যোগ হবে। পর্যাপ্ত কাঁচামাল না থাকলে উৎপাদন সম্পন্ন হবে না। একই অর্ডারে দ্বিতীয়বার কর্তন হবে না।</div>'+
     table(['মডেল / রং / সাইজ','লক্ষ্যমাত্রা','ভালো জোড়া','নষ্ট','বর্তমান ধাপ','অগ্রগতি আপডেট','তারিখ','কাজ','উৎপাদন খরচ'],rows,'কোনো উৎপাদন অর্ডার নেই');
 }
 function advance(bid,step){
@@ -297,12 +297,13 @@ function saveEditedBatch(bid){
   const target=Number(document.querySelector('#ebtarget').value)||0;
   if(target<=0)return toast('উৎপাদনের লক্ষ্যমাত্রা দিন');
   if(b.materialsDeducted||b.stocked)return toast('কাঁচামাল কর্তন হয়ে গেছে; পরিকল্পনা পরিবর্তন করা যাবে না');
+  const oldTarget=Number(b.target)||0;
   b.model=val('ebmodel');b.color=val('ebcolor');b.sizes=val('ebsizes');b.target=target;b.price=num('ebprice');b.otherCost=num('ebothercost');
   b.plannedMaterials=plannedMaterials;
   b.materialUnitCost=plannedMaterials.reduce((sum,x)=>sum+x.perPair*x.unitCost,0);
   b.unitCost=b.materialUnitCost+(target?b.otherCost/target:0);
   b.batchCost=b.materialUnitCost*target+b.otherCost;
-  if(!b.good||Number(b.good)===Number(b.target))b.good=target;
+  if(!b.good||Number(b.good)===oldTarget)b.good=target;
   logActivity('উৎপাদন অর্ডার ও কাঁচামালের পরিকল্পনা সম্পাদনা',b.model+' · '+b.color);
   closeModal();save();toast('উৎপাদন অর্ডার ও কাঁচামালের পরিকল্পনা সংরক্ষিত হয়েছে');
 } function deleteBatch(bid){if(!requireManagerAction())return;const b=db.batches.find(x=>x.id===bid);if(!b)return;if(b.stocked)return toast("প্যাকিং সম্পন্ন উৎপাদন অর্ডার সরাসরি বিয়োজন করা যাবে না");if(!confirm("এই উৎপাদন অর্ডারটি বিয়োজন করবেন?"))return;db.batches=db.batches.filter(x=>x.id!==bid);logActivity("উৎপাদন অর্ডার বিয়োজন",b.model);save();toast("উৎপাদন অর্ডার বিয়োজন হয়েছে")}
